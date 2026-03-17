@@ -9,22 +9,22 @@ export default function AuthLayout({
     const productName = process.env.NEXT_PUBLIC_PRODUCTNAME;
     const testimonials = [
         {
-            quote: "This template helped us launch our SaaS product in just two weeks. The authentication and multi-tenancy features are rock solid.",
-            author: "Sarah Chen",
-            role: "CTO, TechStart",
-            avatar: "SC"
+            quote: "แอพนี้ช่วยให้ผมดูแลลูกง่ายขึ้นมาก ฟีเจอร์ติดตามพัฒนาการและการแจ้งเตือนเป็นสิ่งที่ดีมากจริงๆ",
+            author: "สมชาย ม.",
+            role: "คุณพ่อของน้องก้อง (3 ขวบ)",
+            avatar: "สม"
         },
         {
-            quote: "The best part is how well thought out the organization management is. It saved us months of development time.",
-            author: "Michael Roberts",
-            role: "Founder, DataFlow",
-            avatar: "MR"
+            quote: "คลังความรู้ที่รวมถึงการดูแลสุขภาพฟันและโภชนาการช่วยให้แม่มีความมั่นใจมากขึ้น ขอบคุณมากค่ะ",
+            author: "วิริยา ส.",
+            role: "คุณแม่ของน้องน้ำใส (2 ขวบ)",
+            avatar: "วิ"
         },
         {
-            quote: "Clean code, great documentation, and excellent support. Exactly what we needed to get our MVP off the ground.",
-            author: "Jessica Kim",
-            role: "Lead Developer, CloudScale",
-            avatar: "JK"
+            quote: "กราฟติดตามการเจริญเติบโตทำให้เห็นพัฒนาการของลูกได้ชัดเจน ใช้งานง่ายและมีประโยชน์มากสำหรับคนเป็นแม่",
+            author: "มะลิวรรณ จ.",
+            role: "คุณแม่ของน้องต้นไม้ (4 ขวบ)",
+            avatar: "มะ"
         }
     ];
 
@@ -36,7 +36,7 @@ export default function AuthLayout({
                     className="absolute left-8 top-8 flex items-center text-sm text-gray-600 hover:text-gray-900 transition-colors"
                 >
                     <ArrowLeft className="w-4 h-4 mr-2" />
-                    Back to Homepage
+                    กลับหน้าหลัก
                 </Link>
 
                 <div className="sm:mx-auto sm:w-full sm:max-w-md">
@@ -54,7 +54,7 @@ export default function AuthLayout({
                 <div className="w-full flex items-center justify-center p-12">
                     <div className="space-y-6 max-w-lg">
                         <h3 className="text-white text-2xl font-bold mb-8">
-                            Trusted by developers worldwide
+                            ได้รับความไว้วางใจจากคุณพ่อคุณแม่
                         </h3>
                         {testimonials.map((testimonial, index) => (
                             <div
@@ -85,7 +85,7 @@ export default function AuthLayout({
                         ))}
                         <div className="mt-8 text-center">
                             <p className="text-primary-100 text-sm">
-                                Join thousands of developers building with {productName}
+                                ร่วมดูแลสุขภาพเด็กให้แข็งแรงสมวัยไปกับ {productName}
                             </p>
                         </div>
                     </div>

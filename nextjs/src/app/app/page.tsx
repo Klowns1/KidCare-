@@ -59,15 +59,15 @@ export default function DashboardContent() {
                         </Link>
 
                         <Link
-                            href="/app/table"
+                            href="/app/profile"
                             className="flex items-center gap-3 p-4 border rounded-lg hover:bg-gray-50 transition-colors"
                         >
                             <div className="p-2 bg-primary-50 rounded-full">
                                 <ExternalLink className="h-4 w-4 text-primary-600" />
                             </div>
                             <div>
-                                <h3 className="font-medium">Example Page</h3>
-                                <p className="text-sm text-gray-500">Check out example features</p>
+                                <h3 className="font-medium">โปรไฟล์ผู้ปกครอง</h3>
+                                <p className="text-sm text-gray-500">จัดการข้อมูลผู้ปกครองและเด็ก</p>
                             </div>
                         </Link>
                     </div>

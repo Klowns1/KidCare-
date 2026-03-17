@@ -9,7 +9,8 @@ import {
     X,
     ChevronDown,
     LogOut,
-    Key, Files, LucideListTodo,
+    Key, 
+    Users, BookOpen, ClipboardList, LineChart, Activity, Bell, Phone
 } from 'lucide-react';
 import { useGlobal } from "@/lib/context/GlobalContext";
 import { createSPASassClient } from "@/lib/supabase/client";
@@ -46,8 +47,13 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
 
     const navigation = [
         { name: 'Homepage', href: '/app', icon: Home },
-        { name: 'Example Storage', href: '/app/storage', icon: Files },
-        { name: 'Example Table', href: '/app/table', icon: LucideListTodo },
+        { name: 'โปรไฟล์ผู้ปกครอง + ข้อมูลเด็ก', href: '/app/profile', icon: Users },
+        { name: 'คลังความรู้', href: '/app/knowledge', icon: BookOpen },
+        { name: 'ติดต่อบุคลากรสุขภาพ', href: '/app/contact', icon: Phone },
+        { name: 'แบบประเมิน Pre/Post-test', href: '/app/assessments', icon: ClipboardList },
+        { name: 'กราฟการเจริญเติบโต', href: '/app/growth', icon: LineChart },
+        { name: 'บันทึกพฤติกรรม', href: '/app/behavior', icon: Activity },
+        { name: 'การแจ้งเตือน', href: '/app/notifications', icon: Bell },
         { name: 'User Settings', href: '/app/user-settings', icon: User },
     ];
 

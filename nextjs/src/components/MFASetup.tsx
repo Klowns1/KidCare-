@@ -231,6 +231,7 @@ export function MFASetup({ onStatusChange }: MFASetupProps) {
                     <div className="space-y-4">
                         <div className="flex justify-center">
                             {qr && (
+                                // eslint-disable-next-line @next/next/no-img-element
                                 <img
                                     src={qr}
                                     alt="QR Code"

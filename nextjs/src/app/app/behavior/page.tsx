@@ -70,8 +70,8 @@ export default function BehaviorPage() {
     const [logs, setLogs] = useState<BehaviorEntry[]>([]);
     const [saved, setSaved] = useState(false);
 
-    const toggleItem = (key: string) => {
-        setEntry({ ...entry, [key]: !(entry as Record<string, boolean | string>)[key] });
+    const toggleItem = (key: keyof BehaviorEntry) => {
+        setEntry({ ...entry, [key]: !entry[key] });
     };
 
     const handleSave = () => {
@@ -81,7 +81,7 @@ export default function BehaviorPage() {
     };
 
     const completedCount = sections.reduce((sum, s) =>
-        sum + s.items.filter(i => (entry as Record<string, boolean | string>)[i.key] === true).length, 0);
+        sum + s.items.filter(i => entry[i.key as keyof BehaviorEntry] === true).length, 0);
     const totalItems = sections.reduce((sum, s) => sum + s.items.length, 0);
 
     return (
@@ -119,9 +119,9 @@ export default function BehaviorPage() {
                     </CardHeader>
                     <CardContent className="pt-4 space-y-2">
                         {section.items.map(item => {
-                            const checked = (entry as Record<string, boolean | string>)[item.key] === true;
+                            const checked = entry[item.key as keyof BehaviorEntry] === true;
                             return (
-                                <button key={item.key} onClick={() => toggleItem(item.key)}
+                                <button key={item.key} onClick={() => toggleItem(item.key as keyof BehaviorEntry)}
                                     className={`w-full flex items-center gap-3 p-3 rounded-lg border transition-all text-left
                                         ${checked ? 'bg-green-50 border-green-300' : 'bg-white border-gray-200 hover:bg-gray-50'}`}>
                                     <CheckSquare className={`h-5 w-5 flex-shrink-0 ${checked ? 'text-green-600' : 'text-gray-300'}`} />
@@ -162,7 +162,7 @@ export default function BehaviorPage() {
                     </CardHeader>
                     <CardContent>
                         {logs.map((log, idx) => {
-                            const done = sections.reduce((s, sec) => s + sec.items.filter(i => (log as Record<string, boolean | string>)[i.key] === true).length, 0);
+                            const done = sections.reduce((s, sec) => s + sec.items.filter(i => log[i.key as keyof BehaviorEntry] === true).length, 0);
                             return (
                                 <div key={idx} className="flex justify-between items-center py-2 border-b last:border-0">
                                     <span className="text-sm text-gray-700">{log.date}</span>

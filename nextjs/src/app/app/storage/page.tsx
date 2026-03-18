@@ -27,6 +27,7 @@ export default function FileManagementPage() {
         if (user?.id) {
             loadFiles();
         }
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [user]);
 
     const loadFiles = async () => {
@@ -86,6 +87,7 @@ export default function FileManagementPage() {
         if (files.length > 0) {
             handleFileUpload(files[0]);
         }
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
 
 

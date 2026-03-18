@@ -57,7 +57,7 @@ const PROVIDER_CONFIGS = {
     //     textColor: 'text-white',
     //     borderColor: 'border-transparent'
     // }
-};
+} as Record<Provider, { name: string; icon: React.ReactNode; bgColor: string; textColor: string; borderColor: string }>;
 
 function getEnabledProviders(): Provider[] {
     const providersStr = process.env.NEXT_PUBLIC_SSO_PROVIDERS || '';

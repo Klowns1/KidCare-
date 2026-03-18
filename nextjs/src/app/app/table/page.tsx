@@ -143,6 +143,7 @@ export default function TaskManagementPage() {
         if (user?.id) {
             loadTasks();
         }
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [filter, user?.id]);
 
     const loadTasks = async (): Promise<void> => {

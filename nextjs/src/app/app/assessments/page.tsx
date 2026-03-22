@@ -1,7 +1,9 @@
 "use client";
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
-import { ClipboardList, CheckCircle, ArrowRight } from 'lucide-react';
+import { ClipboardList, CheckCircle, ArrowRight, Loader2, AlertCircle } from 'lucide-react';
+import { useGlobal } from '@/lib/context/GlobalContext';
+import { createSPASassClientAuthenticated as createSPASassClient } from '@/lib/supabase/client';
 
 const domains = [
     {
@@ -71,34 +73,137 @@ function getLiteracyLevel(total: number, max: number) {
 }
 
 export default function AssessmentsPage() {
+    const { user } = useGlobal();
     const [testType, setTestType] = useState<'pre' | 'post'>('pre');
     const [answers, setAnswers] = useState<Record<string, number>>({});
     const [submitted, setSubmitted] = useState(false);
+    
+    const [loading, setLoading] = useState(true);
+    const [saving, setSaving] = useState(false);
+    const [error, setError] = useState('');
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const [pastResult, setPastResult] = useState<any>(null);
 
     const totalQuestions = domains.reduce((sum, d) => sum + d.questions.length, 0);
     const maxScore = totalQuestions * 5;
+
+    useEffect(() => {
+        if (!user) return;
+        
+        async function checkPastTest() {
+            setLoading(true);
+            setPastResult(null);
+            setError('');
+            try {
+                const supabaseWrapper = await createSPASassClient();
+                const supabase = supabaseWrapper.getSupabaseClient();
+                
+                const { data, error: fetchError } = await supabase
+                    .from('assessment_results')
+                    .select('*')
+                    .eq('user_id', user!.id)
+                    .eq('test_type', testType)
+                    .order('created_at', { ascending: false })
+                    .limit(1)
+                    .maybeSingle();
+                    
+                if (fetchError) throw fetchError;
+                
+                if (data) {
+                    setPastResult(data);
+                    setSubmitted(true);
+                } else {
+                    setSubmitted(false);
+                }
+            } catch (err: unknown) {
+                console.error(err);
+                setError("เกิดข้อผิดพลาดในการโหลดข้อมูลแบบประเมิน");
+            } finally {
+                setLoading(false);
+            }
+        }
+        
+        checkPastTest();
+    }, [user, testType]);
 
     const handleAnswer = (domainId: string, qIdx: number, score: number) => {
         setAnswers({ ...answers, [`${domainId}_${qIdx}`]: score });
     };
 
-    const totalScore = Object.values(answers).reduce((sum, v) => sum + v, 0);
-    const result = getLiteracyLevel(totalScore, maxScore);
+    const currentTotalScore = Object.values(answers).reduce((sum, v) => sum + v, 0);
+    const displayScore = pastResult ? pastResult.total_score : currentTotalScore;
+    const displayMaxScore = maxScore;
+    const result = getLiteracyLevel(displayScore, displayMaxScore);
 
     const domainScores = domains.map(d => {
         let sum = 0;
-        d.questions.forEach((_, i) => { sum += answers[`${d.id}_${i}`] || 0; });
+        if (pastResult) {
+            sum = pastResult[`score_${d.id}`] || 0;
+        } else {
+            d.questions.forEach((_, i) => { sum += answers[`${d.id}_${i}`] || 0; });
+        }
         return { title: d.title, score: sum, max: d.questions.length * 5 };
     });
 
-    const handleSubmit = () => {
-        setSubmitted(true);
+    const isAllAnswered = Object.keys(answers).length === totalQuestions;
+
+    const handleSubmit = async () => {
+        if (!user || !isAllAnswered) return;
+        
+        setSaving(true);
+        setError('');
+        
+        try {
+            const supabaseWrapper = await createSPASassClient();
+            const supabase = supabaseWrapper.getSupabaseClient();
+            
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            const payload: any = {
+                user_id: user.id,
+                test_type: testType,
+                total_score: currentTotalScore,
+                literacy_level: result.level,
+                recommendations: result.rec,
+            };
+            
+            domains.forEach(d => {
+                let sum = 0;
+                d.questions.forEach((_, i) => { sum += answers[`${d.id}_${i}`] || 0; });
+                payload[`score_${d.id}`] = sum;
+            });
+            
+            const { data, error: insertError } = await supabase
+                .from('assessment_results')
+                .insert([payload])
+                .select()
+                .maybeSingle();
+                
+            if (insertError) throw insertError;
+            
+            setPastResult(data);
+            setSubmitted(true);
+            
+        } catch (err: unknown) {
+            console.error(err);
+            setError("เกิดข้อผิดพลาดในการส่งแบบประเมิน");
+        } finally {
+            setSaving(false);
+        }
     };
 
     const handleReset = () => {
         setAnswers({});
+        setPastResult(null);
         setSubmitted(false);
     };
+
+    if (loading) {
+        return (
+            <div className="flex h-[50vh] items-center justify-center">
+                <Loader2 className="h-8 w-8 animate-spin text-primary-600" />
+            </div>
+        );
+    }
 
     return (
         <div className="space-y-6 p-6">
@@ -106,6 +211,13 @@ export default function AssessmentsPage() {
                 <ClipboardList className="h-7 w-7 text-primary-600" />
                 <h1 className="text-2xl font-bold text-gray-900">แบบประเมินความรอบรู้ด้านสุขภาพ</h1>
             </div>
+
+            {error && (
+                <div className="p-4 bg-red-50 border border-red-200 text-red-800 rounded-lg flex gap-3">
+                    <AlertCircle className="h-5 w-5 flex-shrink-0 mt-0.5" />
+                    <span>{error}</span>
+                </div>
+            )}
 
             {/* Test Type Selector */}
             <div className="flex gap-2">
@@ -150,10 +262,16 @@ export default function AssessmentsPage() {
                         </Card>
                     ))}
 
-                    <button onClick={handleSubmit}
-                        className="flex items-center gap-2 px-6 py-3 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition-colors font-medium">
-                        <CheckCircle className="h-5 w-5" /> ส่งแบบประเมิน
+                    <button 
+                        onClick={handleSubmit}
+                        disabled={saving || !isAllAnswered}
+                        className="flex items-center gap-2 px-6 py-3 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition-colors font-medium disabled:opacity-50 disabled:cursor-not-allowed">
+                        {saving ? <Loader2 className="h-5 w-5 animate-spin" /> : <CheckCircle className="h-5 w-5" />} 
+                        {saving ? 'กำลังส่ง...' : 'ส่งแบบประเมิน'}
                     </button>
+                    {!isAllAnswered && (
+                        <p className="text-sm text-red-500 mt-2">กรุณาตอบคำถามให้ครบทุกข้อ ({Object.keys(answers).length}/{totalQuestions})</p>
+                    )}
                 </>
             ) : (
                 <Card className="border-2 border-primary-200">
@@ -162,7 +280,7 @@ export default function AssessmentsPage() {
                     </CardHeader>
                     <CardContent className="pt-6 space-y-4">
                         <div className="text-center">
-                            <p className="text-4xl font-bold text-primary-600">{totalScore} / {maxScore}</p>
+                            <p className="text-4xl font-bold text-primary-600">{displayScore} / {displayMaxScore}</p>
                             <p className={`text-lg font-semibold mt-2 ${result.color}`}>ระดับ: {result.level}</p>
                             <div className={`mt-3 p-3 rounded-lg ${result.bg}`}>
                                 <p className="text-sm">{result.rec}</p>
@@ -177,10 +295,15 @@ export default function AssessmentsPage() {
                             </div>
                         ))}
 
-                        <div className="flex gap-2 mt-4">
+                        {pastResult && (
+                            <div className="bg-primary-50 text-primary-700 p-3 rounded-lg text-sm my-4 border border-primary-200">
+                                ท่านทำแบบประเมินนี้ไปแล้วเมื่อ {new Date(pastResult.created_at).toLocaleDateString('th-TH', { year: 'numeric', month: 'long', day: 'numeric' })}
+                            </div>
+                        )}
+                        <div className="flex gap-2 mt-4 flex-wrap">
                             <button onClick={handleReset}
                                 className="px-4 py-2 border rounded-lg hover:bg-gray-50 transition-colors text-sm">
-                                ทำแบบประเมินใหม่
+                                ปรับปรุงคำตอบ / ทำใหม่
                             </button>
                             <button className="flex items-center gap-1 px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 text-sm">
                                 ไปคลังความรู้ <ArrowRight className="h-4 w-4" />

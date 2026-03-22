@@ -1,8 +1,10 @@
 "use client";
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
-import { LineChart as LineChartIcon, Plus, Save } from 'lucide-react';
+import { LineChart as LineChartIcon, Plus, Save, Loader2, AlertCircle } from 'lucide-react';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
+import { useGlobal } from '@/lib/context/GlobalContext';
+import { createSPASassClientAuthenticated as createSPASassClient } from '@/lib/supabase/client';
 
 interface HealthRecord {
     date: string;
@@ -10,36 +12,118 @@ interface HealthRecord {
     height: number;
 }
 
-const sampleData: HealthRecord[] = [
-    { date: '2025-01', weight: 12.5, height: 88 },
-    { date: '2025-03', weight: 13.0, height: 90 },
-    { date: '2025-06', weight: 13.8, height: 93 },
-    { date: '2025-09', weight: 14.5, height: 96 },
-    { date: '2025-12', weight: 15.0, height: 98 },
-];
-
 export default function GrowthPage() {
-    const [records, setRecords] = useState<HealthRecord[]>(sampleData);
+    const { user } = useGlobal();
+    const [records, setRecords] = useState<HealthRecord[]>([]);
     const [showForm, setShowForm] = useState(false);
     const [newRecord, setNewRecord] = useState({ date: '', weight: '', height: '' });
     const [saved, setSaved] = useState(false);
+    
+    const [childId, setChildId] = useState<string | null>(null);
+    const [loading, setLoading] = useState(true);
+    const [error, setError] = useState('');
+    const [saving, setSaving] = useState(false);
 
-    const handleAdd = () => {
-        if (newRecord.date && newRecord.weight && newRecord.height) {
-            const rec: HealthRecord = {
-                date: newRecord.date,
-                weight: parseFloat(newRecord.weight),
-                height: parseFloat(newRecord.height),
-            };
-            setRecords([...records, rec].sort((a, b) => a.date.localeCompare(b.date)));
-            setNewRecord({ date: '', weight: '', height: '' });
-            setShowForm(false);
-            setSaved(true);
-            setTimeout(() => setSaved(false), 3000);
+    useEffect(() => {
+        if (!user) return;
+        
+        async function loadData() {
+            setLoading(true);
+            try {
+                const supabaseWrapper = await createSPASassClient();
+                const supabase = supabaseWrapper.getSupabaseClient();
+                
+                const { data: childData, error: childError } = await supabase
+                    .from('children')
+                    .select('id')
+                    .eq('parent_id', user!.id)
+                    .order('created_at', { ascending: true })
+                    .limit(1)
+                    .maybeSingle();
+                
+                if (childError) throw childError;
+                
+                if (childData) {
+                    setChildId(childData.id);
+                    
+                    const { data: recordsData, error: recordsError } = await supabase
+                        .from('health_records')
+                        .select('*')
+                        .eq('child_id', childData.id)
+                        .order('record_date', { ascending: true });
+                        
+                    if (recordsError) throw recordsError;
+                    
+                    if (recordsData) {
+                        const loadedRecords = recordsData.map(d => ({
+                            date: d.record_date,
+                            weight: parseFloat(d.weight),
+                            height: parseFloat(d.height)
+                        }));
+                        setRecords(loadedRecords);
+                    }
+                }
+            } catch (err: unknown) {
+                console.error(err);
+                setError("เกิดข้อผิดพลาดในการโหลดข้อมูล");
+            } finally {
+                setLoading(false);
+            }
+        }
+        
+        loadData();
+    }, [user]);
+
+    const handleAdd = async () => {
+        if (newRecord.date && newRecord.weight && newRecord.height && childId) {
+            setSaving(true);
+            setError('');
+            try {
+                const supabaseWrapper = await createSPASassClient();
+                const supabase = supabaseWrapper.getSupabaseClient();
+                
+                const payload = {
+                    child_id: childId,
+                    record_date: newRecord.date,
+                    weight: parseFloat(newRecord.weight),
+                    height: parseFloat(newRecord.height)
+                };
+                
+                const { error: insertError } = await supabase
+                    .from('health_records')
+                    .insert([payload]);
+                    
+                if (insertError) throw insertError;
+                
+                const rec: HealthRecord = {
+                    date: newRecord.date,
+                    weight: parseFloat(newRecord.weight),
+                    height: parseFloat(newRecord.height),
+                };
+                
+                setRecords(prev => [...prev, rec].sort((a, b) => a.date.localeCompare(b.date)));
+                setNewRecord({ date: '', weight: '', height: '' });
+                setShowForm(false);
+                setSaved(true);
+                setTimeout(() => setSaved(false), 3000);
+            } catch (err: unknown) {
+                console.error(err);
+                setError("เกิดข้อผิดพลาดในการบันทึกข้อมูล");
+            } finally {
+                setSaving(false);
+            }
         }
     };
 
     const inputClass = "w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 outline-none";
+
+    if (loading) {
+        return (
+            <div className="flex h-[50vh] items-center justify-center">
+                <Loader2 className="h-8 w-8 animate-spin text-primary-600" />
+            </div>
+        );
+    }
 
     return (
         <div className="space-y-6 p-6">
@@ -57,6 +141,23 @@ export default function GrowthPage() {
             {saved && (
                 <div className="p-3 bg-green-50 border border-green-200 rounded-lg text-green-700 text-sm">
                     ✅ บันทึกข้อมูลสำเร็จ!
+                </div>
+            )}
+
+            {!childId && !loading && (
+                <div className="p-4 bg-orange-50 border border-orange-200 text-orange-800 rounded-lg flex gap-3">
+                    <AlertCircle className="h-5 w-5 flex-shrink-0 mt-0.5" />
+                    <div>
+                        <p className="font-medium">ไม่พบข้อมูลเด็ก</p>
+                        <p className="text-sm mt-1">กรุณาเพิ่มข้อมูลเด็กในหน้า Profile ก่อนใช้งานกราฟการเจริญเติบโต</p>
+                    </div>
+                </div>
+            )}
+
+            {error && (
+                <div className="p-4 bg-red-50 border border-red-200 text-red-800 rounded-lg flex gap-3">
+                    <AlertCircle className="h-5 w-5 flex-shrink-0 mt-0.5" />
+                    <span>{error}</span>
                 </div>
             )}
 
@@ -87,9 +188,10 @@ export default function GrowthPage() {
                                     className={inputClass} placeholder="เช่น 100" />
                             </div>
                         </div>
-                        <button onClick={handleAdd}
-                            className="mt-4 flex items-center gap-2 px-5 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 text-sm font-medium">
-                            <Save className="h-4 w-4" /> บันทึก
+                        <button onClick={handleAdd} disabled={saving || !childId}
+                            className="mt-4 flex items-center gap-2 px-5 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 text-sm font-medium disabled:opacity-70 disabled:cursor-not-allowed">
+                            {saving ? <Loader2 className="h-4 w-4 animate-spin"/> : <Save className="h-4 w-4" />} 
+                            {saving ? 'กำลังบันทึก...' : 'บันทึก'}
                         </button>
                     </CardContent>
                 </Card>

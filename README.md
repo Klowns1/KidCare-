@@ -108,6 +108,27 @@ We are no longer able to modify auth schema. I modified original migrations to r
     - MFA support
     - OAuth providers
 
+## 🚀 วิธีการรันโปรเจคเบื้องต้น (How to run locally)
+
+1. เข้าไปที่โฟลเดอร์ `nextjs`
+   ```bash
+   cd nextjs
+   ```
+2. คัดลอกไฟล์ `.env.template` ไปเป็น `.env.local`
+   ```bash
+   cp .env.template .env.local
+   ```
+3. ติดตั้งแพ็กเกจด้วย `yarn`
+   ```bash
+   yarn install
+   ```
+4. รันโปรเจคในโหมดนักพัฒนา (Development)
+   ```bash
+   yarn dev
+   ```
+5. เปิดเบราว์เซอร์ไปที่ [http://localhost:3000](http://localhost:3000) 🎉
+
+
 ## 📦 Getting Started - local dev
 
 1. Fork or clone repository
@@ -142,6 +163,19 @@ PRIVATE_SUPABASE_SERVICE_KEY=SERVICEROLEKEY
 ```
 10. Run yarn dev
 11. Go to http://localhost:3000 🎉
+
+## 🚀 การนำไปใช้งานจริง (Deployment - Vercel)
+
+1. Fork หรือ Clone โปรเจคนี้
+2. สร้างโปรเจคใหม่ใน Vercel และเลือก Repository ของคุณ
+3. **สิ่งที่สำคัญมาก (วิธีแก้ Error ในรูป):** คุณต้องตั้งค่า Environment Variables ใน Vercel ด้วยข้อมูลเดียวกับใน `.env.local` ได้แก่:
+   - `NEXT_PUBLIC_SUPABASE_URL`: URL ของโปรเจค Supabase
+   - `NEXT_PUBLIC_SUPABASE_ANON_KEY`: Anon Key ของโปรเจค Supabase
+   - `PRIVATE_SUPABASE_SERVICE_KEY`: Service Role Key 
+   *(หากไม่ตั้งค่า จะเจอ Error "@supabase/ssr: Your project's URL and API key are required...")*
+4. กด Deploy
+5. เข้าไปตั้งค่าในไฟล์ `supabase/config.toml` ตรง `site_url` และ `additional_redirect_urls` (สำคัญ: ใน `additional_redirect_urls` ต้องมี `https://URL_ของคุณ/**` ด้วย)
+6. เสร็จสิ้น!
 
 ## 🚀 Getting Started - deploy to vercel
 

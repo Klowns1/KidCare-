@@ -1,7 +1,9 @@
 "use client";
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
-import { Activity, Save, Calendar, CheckSquare } from 'lucide-react';
+import { Activity, Save, Calendar, CheckSquare, Loader2, AlertCircle } from 'lucide-react';
+import { useGlobal } from '@/lib/context/GlobalContext';
+import { createSPASassClientAuthenticated as createSPASassClient } from '@/lib/supabase/client';
 
 interface BehaviorEntry {
     date: string;
@@ -66,23 +68,159 @@ const sections = [
 ];
 
 export default function BehaviorPage() {
+    const { user } = useGlobal();
     const [entry, setEntry] = useState<BehaviorEntry>(defaultEntry);
     const [logs, setLogs] = useState<BehaviorEntry[]>([]);
     const [saved, setSaved] = useState(false);
+    const [childId, setChildId] = useState<string | null>(null);
+    const [loading, setLoading] = useState(true);
+    const [error, setError] = useState('');
+    const [saving, setSaving] = useState(false);
+
+    useEffect(() => {
+        if (!user) return;
+        
+        async function loadData() {
+            setLoading(true);
+            try {
+                const supabaseWrapper = await createSPASassClient();
+                const supabase = supabaseWrapper.getSupabaseClient();
+                
+                // Fetch first child
+                const { data: childData, error: childError } = await supabase
+                    .from('children')
+                    .select('id')
+                    .eq('parent_id', user!.id)
+                    .order('created_at', { ascending: true })
+                    .limit(1)
+                    .maybeSingle();
+                
+                if (childError) throw childError;
+                
+                if (childData) {
+                    setChildId(childData.id);
+                    // Fetch logs
+                    const { data: logData, error: logError } = await supabase
+                        .from('behavior_logs')
+                        .select('*')
+                        .eq('child_id', childData.id)
+                        .order('log_date', { ascending: false });
+                        
+                    if (logError) throw logError;
+                    
+                    if (logData && logData.length > 0) {
+                        const loadedLogs = logData.map(d => ({
+                            date: d.log_date,
+                            meals_3_per_day: d.meals_3_per_day,
+                            fruits_vegetables: d.fruits_vegetables,
+                            breakfast: d.breakfast,
+                            processed_food: d.processed_food,
+                            brushed_teeth: d.brushed_teeth,
+                            dental_checkup: d.dental_checkup,
+                            bottle_before_bed: d.bottle_before_bed,
+                            read_stories: d.read_stories,
+                            played_with_child: d.played_with_child,
+                            self_help_training: d.self_help_training,
+                            praised_child: d.praised_child,
+                            notes: d.notes || ''
+                        }));
+                        setLogs(loadedLogs);
+                        
+                        // Check if today's log exists
+                        const today = new Date().toISOString().split('T')[0];
+                        const todayLog = loadedLogs.find(l => l.date === today);
+                        if (todayLog) setEntry(todayLog);
+                    }
+                }
+            } catch (err: unknown) {
+                console.error(err);
+                setError("เกิดข้อผิดพลาดในการโหลดข้อมูล");
+            } finally {
+                setLoading(false);
+            }
+        }
+        
+        loadData();
+    }, [user]);
 
     const toggleItem = (key: keyof BehaviorEntry) => {
         setEntry({ ...entry, [key]: !entry[key] });
     };
 
-    const handleSave = () => {
-        setLogs([entry, ...logs]);
-        setSaved(true);
-        setTimeout(() => setSaved(false), 3000);
+    const handleSave = async () => {
+        if (!user || !childId) {
+            setError("ไม่สามารถบันทึกได้เนื่องจากไม่พบข้อมูลเด็ก");
+            return;
+        }
+        setSaving(true);
+        setError('');
+        try {
+            const supabaseWrapper = await createSPASassClient();
+            const supabase = supabaseWrapper.getSupabaseClient();
+            
+            const payload = {
+                child_id: childId,
+                log_date: entry.date,
+                meals_3_per_day: entry.meals_3_per_day,
+                fruits_vegetables: entry.fruits_vegetables,
+                breakfast: entry.breakfast,
+                processed_food: entry.processed_food,
+                brushed_teeth: entry.brushed_teeth,
+                dental_checkup: entry.dental_checkup,
+                bottle_before_bed: entry.bottle_before_bed,
+                read_stories: entry.read_stories,
+                played_with_child: entry.played_with_child,
+                self_help_training: entry.self_help_training,
+                praised_child: entry.praised_child,
+                notes: entry.notes || null
+            };
+
+            const { data: existing, error: findError } = await supabase
+                .from('behavior_logs')
+                .select('id')
+                .eq('child_id', childId)
+                .eq('log_date', entry.date)
+                .maybeSingle();
+                
+            if (findError) throw findError;
+            
+            if (existing) {
+                const { error: updateError } = await supabase
+                    .from('behavior_logs')
+                    .update(payload)
+                    .eq('id', existing.id);
+                if (updateError) throw updateError;
+            } else {
+                const { error: insertError } = await supabase
+                    .from('behavior_logs')
+                    .insert([payload]);
+                if (insertError) throw insertError;
+            }
+            
+            const filteredLogs = logs.filter(l => l.date !== entry.date);
+            setLogs([entry, ...filteredLogs].sort((a,b) => b.date.localeCompare(a.date)));
+            
+            setSaved(true);
+            setTimeout(() => setSaved(false), 3000);
+        } catch (err: unknown) {
+            console.error(err);
+            setError(err instanceof Error ? err.message : "เกิดข้อผิดพลาดในการบันทึกข้อมูล");
+        } finally {
+            setSaving(false);
+        }
     };
 
     const completedCount = sections.reduce((sum, s) =>
         sum + s.items.filter(i => entry[i.key as keyof BehaviorEntry] === true).length, 0);
     const totalItems = sections.reduce((sum, s) => sum + s.items.length, 0);
+
+    if (loading) {
+        return (
+            <div className="flex h-[50vh] items-center justify-center">
+                <Loader2 className="h-8 w-8 animate-spin text-primary-600" />
+            </div>
+        );
+    }
 
     return (
         <div className="space-y-6 p-6">
@@ -92,6 +230,23 @@ export default function BehaviorPage() {
             </div>
 
             {/* Date */}
+            {!childId && !loading && (
+                <div className="p-4 bg-orange-50 border border-orange-200 text-orange-800 rounded-lg flex gap-3 mb-4">
+                    <AlertCircle className="h-5 w-5 flex-shrink-0 mt-0.5" />
+                    <div>
+                        <p className="font-medium">ไม่พบข้อมูลเด็ก</p>
+                        <p className="text-sm mt-1">กรุณาเพิ่มข้อมูลเด็กในหน้า Profile ก่อนเริ่มการบันทึกพฤติกรรม</p>
+                    </div>
+                </div>
+            )}
+
+            {error && (
+                <div className="p-4 bg-red-50 border border-red-200 text-red-800 rounded-lg flex gap-3 mb-4">
+                    <AlertCircle className="h-5 w-5 flex-shrink-0 mt-0.5" />
+                    <span>{error}</span>
+                </div>
+            )}
+
             <div className="flex items-center gap-2">
                 <Calendar className="h-5 w-5 text-gray-500" />
                 <input type="date" value={entry.date}
@@ -144,9 +299,10 @@ export default function BehaviorPage() {
             </Card>
 
             {/* Save */}
-            <button onClick={handleSave}
-                className="flex items-center gap-2 px-6 py-3 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition-colors font-medium">
-                <Save className="h-5 w-5" /> บันทึกข้อมูลวันนี้
+            <button onClick={handleSave} disabled={saving || !childId}
+                className="flex items-center gap-2 px-6 py-3 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition-colors font-medium disabled:opacity-70 disabled:cursor-not-allowed">
+                {saving ? <Loader2 className="h-5 w-5 animate-spin"/> : <Save className="h-5 w-5" />} 
+                {saving ? 'กำลังบันทึก...' : 'บันทึกข้อมูลวันนี้'}
             </button>
             {saved && (
                 <div className="p-3 bg-green-50 border border-green-200 rounded-lg text-green-700 text-sm">

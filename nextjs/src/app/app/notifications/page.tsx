@@ -1,37 +1,97 @@
 "use client";
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Card, CardContent } from '@/components/ui/card';
-import { Bell, Check } from 'lucide-react';
+import { Bell, Check, Loader2, AlertCircle } from 'lucide-react';
+import { useGlobal } from '@/lib/context/GlobalContext';
+import { createSPASassClientAuthenticated as createSPASassClient } from '@/lib/supabase/client';
 
-interface Notification {
-    id: number;
-    type: string;
-    title: string;
-    message: string;
-    time: string;
-    is_read: boolean;
-    icon: string;
+function getIconForType(type: string) {
+    if (type.includes('brush') || type.includes('teeth')) return '🦷';
+    if (type.includes('dental')) return '🏥';
+    if (type.includes('weigh') || type.includes('height')) return '⚖️';
+    if (type.includes('development')) return '📖';
+    if (type.includes('appointment')) return '🏥';
+    if (type.includes('system')) return '⚙️';
+    if (type.includes('behavior')) return '🍎';
+    if (type.includes('assessment')) return '📋';
+    return '🔔';
 }
 
-const initialNotifications: Notification[] = [
-    { id: 1, type: 'brush_teeth', title: 'แจ้งเตือนแปรงฟัน', message: 'ถึงเวลาแปรงฟันก่อนนอนให้ลูกแล้วค่ะ อย่าลืมใช้ยาสีฟันฟลูออไรด์', time: '20:00', is_read: false, icon: '🦷' },
-    { id: 2, type: 'dental_checkup', title: 'แจ้งเตือนตรวจฟัน', message: 'ครบกำหนด 6 เดือน ควรพาเด็กไปพบทันตแพทย์', time: 'ครบกำหนดวันนี้', is_read: false, icon: '🏥' },
-    { id: 3, type: 'weigh_in', title: 'แจ้งเตือนชั่งน้ำหนัก', message: 'ถึงเวลาบันทึกน้ำหนักและส่วนสูงประจำเดือนแล้วค่ะ', time: 'ประจำเดือน', is_read: false, icon: '⚖️' },
-    { id: 4, type: 'development', title: 'แจ้งเตือนกิจกรรมพัฒนาการ', message: 'วันนี้ลองอ่านนิทานให้ลูกฟังสัก 15 นาที เพื่อส่งเสริมพัฒนาการด้านภาษา', time: 'ทุกวัน', is_read: false, icon: '📖' },
-    { id: 5, type: 'brush_teeth', title: 'แจ้งเตือนแปรงฟันเช้า', message: 'ถึงเวลาแปรงฟันตอนเช้าให้ลูกค่ะ', time: '07:00', is_read: true, icon: '🦷' },
-    { id: 6, type: 'development', title: 'แจ้งเตือนเล่นกับเด็ก', message: 'ชวนลูกเล่นต่อบล็อกหรือระบายสี เพื่อพัฒนากล้ามเนื้อมัดเล็ก', time: 'ทุกวัน', is_read: true, icon: '🧩' },
-];
-
 export default function NotificationsPage() {
-    const [notifications, setNotifications] = useState<Notification[]>(initialNotifications);
+    const { user } = useGlobal();
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const [notifications, setNotifications] = useState<any[]>([]);
     const [filter, setFilter] = useState<string>('all');
+    const [loading, setLoading] = useState(true);
+    const [error, setError] = useState('');
 
-    const markAsRead = (id: number) => {
-        setNotifications(notifications.map(n => n.id === id ? { ...n, is_read: true } : n));
+    useEffect(() => {
+        if (!user) return;
+        
+        async function fetchNotifications() {
+            setLoading(true);
+            try {
+                const supabaseWrapper = await createSPASassClient();
+                const supabase = supabaseWrapper.getSupabaseClient();
+                
+                const { data, error: fetchError } = await supabase
+                    .from('notifications')
+                    .select('*')
+                    .eq('user_id', user!.id)
+                    .order('created_at', { ascending: false });
+                    
+                if (fetchError) throw fetchError;
+                
+                setNotifications(data || []);
+            } catch (err: unknown) {
+                console.error(err);
+                setError("เกิดข้อผิดพลาดในการโหลดการแจ้งเตือน");
+            } finally {
+                setLoading(false);
+            }
+        }
+        
+        fetchNotifications();
+    }, [user]);
+
+    const markAsRead = async (id: string, is_read: boolean) => {
+        if (is_read) return;
+        try {
+            const supabaseWrapper = await createSPASassClient();
+            const supabase = supabaseWrapper.getSupabaseClient();
+            
+            const { error: updateError } = await supabase
+                .from('notifications')
+                .update({ is_read: true })
+                .eq('id', id);
+                
+            if (updateError) throw updateError;
+            
+            setNotifications(notifications.map(n => n.id === id ? { ...n, is_read: true } : n));
+        } catch (err: unknown) {
+            console.error(err);
+        }
     };
 
-    const markAllRead = () => {
-        setNotifications(notifications.map(n => ({ ...n, is_read: true })));
+    const markAllRead = async () => {
+        try {
+            const supabaseWrapper = await createSPASassClient();
+            const supabase = supabaseWrapper.getSupabaseClient();
+            
+            const unreadIds = notifications.filter(n => !n.is_read).map(n => n.id);
+            if (unreadIds.length === 0) return;
+            
+            const { error: updateError } = await supabase
+                .from('notifications')
+                .update({ is_read: true })
+                .in('id', unreadIds);
+                
+            if (updateError) throw updateError;
+            
+            setNotifications(notifications.map(n => ({ ...n, is_read: true })));
+        } catch (err: unknown) {
+            console.error(err);
+        }
     };
 
     const filtered = filter === 'all' ? notifications :
@@ -43,11 +103,18 @@ export default function NotificationsPage() {
     const filterButtons = [
         { key: 'all', label: 'ทั้งหมด' },
         { key: 'unread', label: `ยังไม่อ่าน (${unreadCount})` },
-        { key: 'brush_teeth', label: '🦷 แปรงฟัน' },
-        { key: 'dental_checkup', label: '🏥 ตรวจฟัน' },
-        { key: 'weigh_in', label: '⚖️ ชั่งน้ำหนัก' },
-        { key: 'development', label: '📖 พัฒนาการ' },
+        { key: 'system', label: '⚙️ ระบบ' },
+        { key: 'appointment', label: '🏥 นัดหมาย' },
+        { key: 'reminder', label: '🔔 เตือนความจำ' },
     ];
+
+    if (loading) {
+        return (
+            <div className="flex h-[50vh] items-center justify-center">
+                <Loader2 className="h-8 w-8 animate-spin text-primary-600" />
+            </div>
+        );
+    }
 
     return (
         <div className="space-y-6 p-6">
@@ -66,6 +133,13 @@ export default function NotificationsPage() {
                     </button>
                 )}
             </div>
+
+            {error && (
+                <div className="p-4 bg-red-50 border border-red-200 text-red-800 rounded-lg flex gap-3">
+                    <AlertCircle className="h-5 w-5 flex-shrink-0 mt-0.5" />
+                    <span>{error}</span>
+                </div>
+            )}
 
             {/* Filters */}
             <div className="flex gap-2 flex-wrap">
@@ -87,24 +161,30 @@ export default function NotificationsPage() {
                 </Card>
             ) : (
                 <div className="space-y-2">
-                    {filtered.map(n => (
-                        <Card key={n.id} className={`cursor-pointer transition-all hover:shadow-md ${!n.is_read ? 'border-l-4 border-l-primary-500 bg-primary-50/30' : ''}`}
-                            onClick={() => markAsRead(n.id)}>
-                            <CardContent className="py-4">
-                                <div className="flex items-start gap-3">
-                                    <span className="text-2xl">{n.icon}</span>
-                                    <div className="flex-1">
-                                        <div className="flex items-center justify-between">
-                                            <h3 className={`font-medium ${!n.is_read ? 'text-gray-900' : 'text-gray-600'}`}>{n.title}</h3>
-                                            <span className="text-xs text-gray-400">{n.time}</span>
+                    {filtered.map(n => {
+                        const icon = getIconForType(n.type);
+                        const timeString = new Date(n.created_at).toLocaleDateString('th-TH', { 
+                            year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' 
+                        });
+                        return (
+                            <Card key={n.id} className={`cursor-pointer transition-all hover:shadow-md ${!n.is_read ? 'border-l-4 border-l-primary-500 bg-primary-50/30' : ''}`}
+                                onClick={() => markAsRead(n.id, n.is_read)}>
+                                <CardContent className="py-4">
+                                    <div className="flex items-start gap-3">
+                                        <span className="text-2xl">{icon}</span>
+                                        <div className="flex-1">
+                                            <div className="flex flex-col sm:flex-row sm:items-center justify-between">
+                                                <h3 className={`font-medium ${!n.is_read ? 'text-gray-900' : 'text-gray-600'}`}>{n.title}</h3>
+                                                <span className="text-xs text-gray-400">{timeString}</span>
+                                            </div>
+                                            <p className="text-sm text-gray-600 mt-1">{n.message}</p>
                                         </div>
-                                        <p className="text-sm text-gray-600 mt-1">{n.message}</p>
+                                        {!n.is_read && <div className="w-2 h-2 bg-primary-500 rounded-full mt-2 flex-shrink-0" />}
                                     </div>
-                                    {!n.is_read && <div className="w-2 h-2 bg-primary-500 rounded-full mt-2 flex-shrink-0" />}
-                                </div>
-                            </CardContent>
-                        </Card>
-                    ))}
+                                </CardContent>
+                            </Card>
+                        );
+                    })}
                 </div>
             )}
         </div>

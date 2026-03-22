@@ -21,8 +21,8 @@ export default function RootLayout({
   }
   const gaID = process.env.NEXT_PUBLIC_GOOGLE_TAG;
   return (
-    <html lang="en">
-    <body className={theme}>
+    <html lang="en" suppressHydrationWarning>
+    <body className={theme} suppressHydrationWarning>
       {children}
       <Analytics />
       <CookieConsent />

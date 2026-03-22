@@ -10,12 +10,14 @@ export default function ExpertPortalPage() {
     // Chat states
     const [chatUsers, setChatUsers] = useState<string[]>([]);
     const [selectedUserId, setSelectedUserId] = useState<string | null>(null);
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const [messages, setMessages] = useState<any[]>([]);
     const [inputText, setInputText] = useState('');
     const [sending, setSending] = useState(false);
     const messagesEndRef = useRef<HTMLDivElement>(null);
 
     // Appointment states
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const [appointments, setAppointments] = useState<any[]>([]);
 
     const [loading, setLoading] = useState(true);
@@ -28,6 +30,7 @@ export default function ExpertPortalPage() {
             refreshData(false);
         }, 5000);
         return () => clearInterval(interval);
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [selectedUserId, activeTab]);
 
     useEffect(() => {

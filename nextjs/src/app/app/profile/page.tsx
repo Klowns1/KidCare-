@@ -115,7 +115,7 @@ export default function ProfilePage() {
             const supabase = supabaseWrapper.getSupabaseClient();
 
             const parentPayload = {
-                id: user.id,
+                user_id: user.id,
                 gender: parent.gender || null,
                 age: parent.age ? parseInt(parent.age) : null,
                 education_level: parent.education_level || null,
@@ -129,9 +129,12 @@ export default function ProfilePage() {
 
             const { error: upsertError } = await supabase
                 .from('parent_profiles')
-                .upsert(parentPayload);
+                .upsert(parentPayload, { onConflict: 'user_id' });
 
-            if (upsertError) throw upsertError;
+            if (upsertError) {
+                console.error("Supabase Save Parent Error:", JSON.stringify(upsertError));
+                throw new Error(upsertError.message || "Failed to save parent");
+            }
 
             setSuccess('บันทึกข้อมูลผู้ปกครองเรียบร้อยแล้ว');
             setTimeout(() => setSuccess(''), 3000);
@@ -153,8 +156,19 @@ export default function ProfilePage() {
             const supabaseWrapper = await createSPASassClient();
             const supabase = supabaseWrapper.getSupabaseClient();
 
+            // Fetch the actual parent_profiles.id first (FK references parent_profiles.id, not auth.users.id)
+            const { data: parentRow, error: parentFetchError } = await supabase
+                .from('parent_profiles')
+                .select('id')
+                .eq('user_id', user.id)
+                .maybeSingle();
+
+            if (parentFetchError || !parentRow) {
+                throw new Error("กรุณาบันทึก 'ข้อมูลผู้ปกครอง' ก่อนทำการบันทึกข้อมูลเด็กครับ");
+            }
+
             const childPayload = {
-                parent_id: user.id,
+                parent_id: parentRow.id,
                 gender: child.gender || null,
                 birth_date: child.birth_date || null,
                 birth_order: child.birth_order ? parseInt(child.birth_order) : null,
@@ -180,7 +194,13 @@ export default function ProfilePage() {
             }
 
             const { data, error: upsertError } = await q;
-            if (upsertError) throw upsertError;
+            if (upsertError) {
+                console.error("Supabase Save Child Error:", JSON.stringify(upsertError));
+                if (upsertError.code === '23503') {
+                    throw new Error("กรุณาบันทึก 'ข้อมูลผู้ปกครอง' ก่อนทำการบันทึกข้อมูลเด็กครับ (Foreign Key Constraint)");
+                }
+                throw new Error(upsertError.message || "Failed to save child");
+            }
             
             if (data && data.id) {
                 setChild({ ...child, id: data.id });

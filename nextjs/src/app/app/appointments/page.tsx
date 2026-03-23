@@ -92,6 +92,25 @@ export default function AppointmentsPage() {
         }
     }
 
+    async function handleCancelAppointment(id: string) {
+        if (!confirm('คุณแน่ใจหรือไม่ที่จะยกเลิกนัดหมายนี้?')) return;
+        try {
+            const supabaseWrapper = await createSPASassClient();
+            const supabase = supabaseWrapper.getSupabaseClient();
+            const { error: updateError } = await supabase
+                .from('appointments')
+                .update({ status: 'cancelled' })
+                .eq('id', id);
+                
+            if (updateError) throw updateError;
+            
+            setAppointments(prev => prev.map(a => a.id === id ? { ...a, status: 'cancelled' } : a));
+        } catch (err: unknown) {
+            console.error("Error cancelling appointment:", err);
+            alert('เกิดข้อผิดพลาดในการยกเลิกนัดหมาย');
+        }
+    }
+
     const getStatusBadge = (status: string) => {
         switch (status) {
             case 'pending': return <span className="px-2 py-1 bg-yellow-100 text-yellow-700 text-xs rounded-full flex items-center gap-1"><Clock className="w-3 h-3"/> รอการยืนยัน</span>;
@@ -180,8 +199,16 @@ export default function AppointmentsPage() {
                                             <p>{app.reason}</p>
                                         </div>
                                     </div>
-                                    <div className="shrink-0 flex sm:flex-col items-center sm:items-end justify-between sm:justify-center w-full sm:w-auto h-full gap-2">
+                                    <div className="shrink-0 flex flex-col items-end justify-center w-full sm:w-auto h-full gap-2">
                                         {getStatusBadge(app.status)}
+                                        {(app.status === 'pending' || app.status === 'confirmed') && (
+                                            <button 
+                                                onClick={() => handleCancelAppointment(app.id)} 
+                                                className="text-xs text-red-600 hover:text-red-700 hover:bg-red-50 px-2 py-1 rounded transition w-fit"
+                                            >
+                                                ยกเลิกนัด
+                                            </button>
+                                        )}
                                     </div>
                                 </div>
                             </Card>

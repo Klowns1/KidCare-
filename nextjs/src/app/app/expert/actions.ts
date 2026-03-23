@@ -93,3 +93,73 @@ export async function updateAppointmentStatus(id: string, status: string) {
         throw err;
     }
 }
+
+export async function getAllArticles() {
+    try {
+        const { data, error } = await supabaseAdmin
+            .from('articles')
+            .select('*')
+            .order('created_at', { ascending: false });
+            
+        if (error) throw error;
+        return data || [];
+    } catch (err: unknown) {
+        console.error("Error getAllArticles", err);
+        return [];
+    }
+}
+
+export async function createArticle(title: string, content: string, category: string, imageUrl: string) {
+    try {
+        const { error } = await supabaseAdmin
+            .from('articles')
+            .insert({
+                title,
+                content,
+                category: category || null,
+                image_url: imageUrl || null
+            });
+            
+        if (error) throw error;
+        return true;
+    } catch (err: unknown) {
+        console.error("Error createArticle", err);
+        throw err;
+    }
+}
+
+export async function updateArticle(id: string, title: string, content: string, category: string, imageUrl: string) {
+    try {
+        const { error } = await supabaseAdmin
+            .from('articles')
+            .update({
+                title,
+                content,
+                category: category || null,
+                image_url: imageUrl || null,
+                updated_at: new Date().toISOString()
+            })
+            .eq('id', id);
+            
+        if (error) throw error;
+        return true;
+    } catch (err: unknown) {
+        console.error("Error updateArticle", err);
+        throw err;
+    }
+}
+
+export async function deleteArticle(id: string) {
+    try {
+        const { error } = await supabaseAdmin
+            .from('articles')
+            .delete()
+            .eq('id', id);
+            
+        if (error) throw error;
+        return true;
+    } catch (err: unknown) {
+        console.error("Error deleteArticle", err);
+        throw err;
+    }
+}

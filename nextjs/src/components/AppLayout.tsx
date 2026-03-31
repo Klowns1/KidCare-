@@ -1,73 +1,47 @@
 "use client";
 import React, { useState } from 'react';
 import Link from 'next/link';
-import { usePathname, useRouter } from 'next/navigation';
+import { usePathname } from 'next/navigation';
 import {
     Home,
-    User,
     X,
-    LogOut,
-    Key,
     Users, BookOpen, ClipboardList, LineChart, Activity, Bell, Phone,
     ChevronRight,
     Heart
 } from 'lucide-react';
-import { useGlobal } from "@/lib/context/GlobalContext";
-import { createSPASassClient } from "@/lib/supabase/client";
 
 export default function AppLayout({ children }: { children: React.ReactNode }) {
     const [isMoreMenuOpen, setMoreMenuOpen] = useState(false);
     const pathname = usePathname();
-    const router = useRouter();
-
-    const { user } = useGlobal();
-
-    const handleLogout = async () => {
-        try {
-            const client = await createSPASassClient();
-            await client.logout();
-        } catch (error) {
-            console.error('Error logging out:', error);
-        }
-    };
-
-    const getInitials = (email: string) => {
-        const parts = email.split('@')[0].split(/[._-]/);
-        return parts.length > 1
-            ? (parts[0][0] + parts[1][0]).toUpperCase()
-            : parts[0].slice(0, 2).toUpperCase();
-    };
 
     const productName = process.env.NEXT_PUBLIC_PRODUCTNAME || 'KidCare';
 
     // All navigation items
     const navigation = [
-        { name: 'หน้าหลัก', href: '/app', icon: Home, emoji: '🏠' },
-        { name: 'โปรไฟล์', href: '/app/profile', icon: Users, emoji: '👨‍👩‍👧' },
-        { name: 'คลังความรู้', href: '/app/knowledge', icon: BookOpen, emoji: '📚' },
-        { name: 'ติดต่อสาธารณสุข', href: '/app/contact', icon: Phone, emoji: '📞' },
-        { name: 'แบบประเมิน', href: '/app/assessments', icon: ClipboardList, emoji: '📋' },
-        { name: 'กราฟเจริญเติบโต', href: '/app/growth', icon: LineChart, emoji: '📈' },
-        { name: 'บันทึกพฤติกรรม', href: '/app/behavior', icon: Activity, emoji: '✅' },
-        { name: 'การแจ้งเตือน', href: '/app/notifications', icon: Bell, emoji: '🔔' },
-        { name: 'ตั้งค่าบัญชี', href: '/app/user-settings', icon: User, emoji: '⚙️' },
+        { name: 'หน้าหลัก', href: '/app', icon: Home },
+        { name: 'โปรไฟล์', href: '/app/profile', icon: Users },
+        { name: 'คลังความรู้', href: '/app/knowledge', icon: BookOpen },
+        { name: 'ติดต่อสาธารณสุข', href: '/app/contact', icon: Phone },
+        { name: 'แบบประเมิน', href: '/app/assessments', icon: ClipboardList },
+        { name: 'กราฟเจริญเติบโต', href: '/app/growth', icon: LineChart },
+        { name: 'บันทึกพฤติกรรม', href: '/app/behavior', icon: Activity },
+        { name: 'การแจ้งเตือน', href: '/app/notifications', icon: Bell },
     ];
 
     // Bottom nav: 4 main tabs + "อื่นๆ"
     const bottomNavItems = [
-        { name: 'หน้าหลัก', href: '/app', icon: Home, emoji: '🏠' },
-        { name: 'ความรู้', href: '/app/knowledge', icon: BookOpen, emoji: '📚' },
-        { name: 'ติดต่อ', href: '/app/contact', icon: Phone, emoji: '📞' },
-        { name: 'บันทึก', href: '/app/behavior', icon: Activity, emoji: '✅' },
+        { name: 'หน้าหลัก', href: '/app', icon: Home },
+        { name: 'ความรู้', href: '/app/knowledge', icon: BookOpen },
+        { name: 'ติดต่อ', href: '/app/contact', icon: Phone },
+        { name: 'บันทึก', href: '/app/behavior', icon: Activity },
     ];
 
     // Items that go into "อื่นๆ" drawer
     const moreMenuItems = [
-        { name: 'โปรไฟล์ผู้ปกครอง+เด็ก', href: '/app/profile', icon: Users, emoji: '👨‍👩‍👧' },
-        { name: 'แบบประเมินพัฒนาการ', href: '/app/assessments', icon: ClipboardList, emoji: '📋' },
-        { name: 'กราฟการเจริญเติบโต', href: '/app/growth', icon: LineChart, emoji: '📈' },
-        { name: 'การแจ้งเตือน', href: '/app/notifications', icon: Bell, emoji: '🔔' },
-        { name: 'ตั้งค่าบัญชี', href: '/app/user-settings', icon: User, emoji: '⚙️' },
+        { name: 'โปรไฟล์ผู้ปกครอง+เด็ก', href: '/app/profile', icon: Users },
+        { name: 'แบบประเมินพัฒนาการ', href: '/app/assessments', icon: ClipboardList },
+        { name: 'กราฟการเจริญเติบโต', href: '/app/growth', icon: LineChart },
+        { name: 'การแจ้งเตือน', href: '/app/notifications', icon: Bell },
     ];
 
     const isBottomNavActive = (href: string) => pathname === href;
@@ -102,43 +76,12 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
                                             : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'
                                     }`}
                                 >
-                                    <span className="text-lg mr-3">{item.emoji}</span>
+                                    <item.icon className="w-5 h-5 mr-3 text-gray-400 group-hover:text-green-600" />
                                     {item.name}
                                 </Link>
                             );
                         })}
                     </nav>
-
-                    {/* Desktop User Info */}
-                    <div className="p-4 border-t border-gray-100">
-                        <div className="flex items-center gap-3 mb-3 p-2 rounded-xl bg-gray-50">
-                            <div className="w-10 h-10 rounded-full bg-green-100 flex items-center justify-center flex-shrink-0">
-                                <span className="text-green-700 font-bold text-sm">
-                                    {user ? getInitials(user.email) : '??'}
-                                </span>
-                            </div>
-                            <div className="min-w-0">
-                                <p className="text-sm font-medium text-gray-900 truncate">{user?.email}</p>
-                                <p className="text-xs text-gray-500">ผู้ปกครอง</p>
-                            </div>
-                        </div>
-                        <div className="flex gap-2">
-                            <button
-                                onClick={() => router.push('/app/user-settings')}
-                                className="flex-1 flex items-center justify-center gap-2 px-3 py-2.5 text-sm text-gray-600 hover:bg-gray-100 rounded-xl transition-colors border border-gray-200"
-                            >
-                                <Key className="h-4 w-4" />
-                                ตั้งค่า
-                            </button>
-                            <button
-                                onClick={handleLogout}
-                                className="flex-1 flex items-center justify-center gap-2 px-3 py-2.5 text-sm text-red-600 hover:bg-red-50 rounded-xl transition-colors border border-red-200"
-                            >
-                                <LogOut className="h-4 w-4" />
-                                ออก
-                            </button>
-                        </div>
-                    </div>
                 </div>
             </div>
 
@@ -157,14 +100,6 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
                         <Link href="/app/notifications" className="p-2 rounded-full hover:bg-gray-100 relative">
                             <Bell className="h-5 w-5 text-gray-500" />
                         </Link>
-                        <button
-                            onClick={() => router.push('/app/user-settings')}
-                            className="w-8 h-8 rounded-full bg-green-100 flex items-center justify-center"
-                        >
-                            <span className="text-green-700 font-bold text-xs">
-                                {user ? getInitials(user.email) : '??'}
-                            </span>
-                        </button>
                     </div>
                 </div>
             </div>
@@ -198,7 +133,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
                                 <div className={`flex items-center justify-center w-10 h-10 rounded-2xl transition-all duration-200 ${
                                     isActive ? 'bg-green-50 scale-110' : ''
                                 }`}>
-                                    <span className="text-xl">{item.emoji}</span>
+                                    <item.icon className="w-6 h-6" />
                                 </div>
                                 <span className={`text-[10px] font-semibold mt-0.5 ${
                                     isActive ? 'text-green-700' : 'text-gray-400'
@@ -218,7 +153,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
                         <div className={`flex items-center justify-center w-10 h-10 rounded-2xl transition-all duration-200 ${
                             isMoreActive ? 'bg-green-50 scale-110' : ''
                         }`}>
-                            <span className="text-xl">📌</span>
+                            <Users className="w-6 h-6" />
                         </div>
                         <span className={`text-[10px] font-semibold mt-0.5 ${
                             isMoreActive ? 'text-green-700' : 'text-gray-400'
@@ -272,7 +207,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
                                                 : 'text-gray-700 hover:bg-gray-50 active:bg-gray-100'
                                         }`}
                                     >
-                                        <span className="text-2xl">{item.emoji}</span>
+                                        <item.icon className="w-6 h-6 mr-3" />
                                         <span className="text-base font-medium flex-1">{item.name}</span>
                                         <ChevronRight className={`h-5 w-5 ${isActive ? 'text-green-500' : 'text-gray-300'}`} />
                                     </Link>
@@ -280,27 +215,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
                             })}
                         </div>
 
-                        {/* User Section */}
-                        <div className="px-4 py-3 border-t border-gray-100 mb-4">
-                            <div className="flex items-center gap-3 p-3 bg-gray-50 rounded-2xl mb-3">
-                                <div className="w-10 h-10 rounded-full bg-green-100 flex items-center justify-center flex-shrink-0">
-                                    <span className="text-green-700 font-bold text-sm">
-                                        {user ? getInitials(user.email) : '??'}
-                                    </span>
-                                </div>
-                                <div className="min-w-0">
-                                    <p className="text-sm font-medium text-gray-900 truncate">{user?.email}</p>
-                                    <p className="text-xs text-gray-500">ผู้ปกครอง</p>
-                                </div>
-                            </div>
-                            <button
-                                onClick={() => { handleLogout(); setMoreMenuOpen(false); }}
-                                className="w-full flex items-center justify-center gap-2 px-4 py-3.5 text-base font-medium text-red-600 bg-red-50 hover:bg-red-100 rounded-2xl transition-colors active:scale-[0.98]"
-                            >
-                                <LogOut className="h-5 w-5" />
-                                ออกจากระบบ
-                            </button>
-                        </div>
+                        {/* User Section Removed */}
                     </div>
 
                     <style jsx>{`

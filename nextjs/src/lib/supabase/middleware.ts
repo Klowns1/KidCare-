@@ -38,14 +38,10 @@ export async function updateSession(request: NextRequest) {
 
     // IMPORTANT: DO NOT REMOVE auth.getUser()
 
-    const {data: user} = await supabase.auth.getUser()
-    if (
-        (!user || !user.user) && request.nextUrl.pathname.startsWith('/app')
-    ) {
-        const url = request.nextUrl.clone()
-        url.pathname = '/auth/login'
-        return NextResponse.redirect(url)
-    }
+    // We no longer redirect to /auth/login because we want users to hit the app
+    // and let the client-side GlobalContext initialize an anonymous session via signInAnonymously.
+    // However, we still MUST call auth.getUser() to refresh tokens if they do have a session.
+    await supabase.auth.getUser()
 
     // IMPORTANT: You *must* return the supabaseResponse object as it is.
     // If you're creating a new response object with NextResponse.next() make sure to:

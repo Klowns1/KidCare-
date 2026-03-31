@@ -31,6 +31,13 @@ export class SassClient {
         });
     }
 
+    async linkAnonymousUser(email: string, password: string) {
+        return this.client.auth.updateUser({
+            email: email,
+            password: password
+        });
+    }
+
     async exchangeCodeForSession(code: string) {
         return this.client.auth.exchangeCodeForSession(code);
     }

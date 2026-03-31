@@ -62,11 +62,9 @@ const domains = [
 ];
 
 const scoreLabels = [
-    { label: 'น้อยที่สุด', emoji: '😥', score: 1 },
-    { label: 'น้อย', emoji: '😟', score: 2 },
-    { label: 'ปานกลาง', emoji: '😐', score: 3 },
-    { label: 'มาก', emoji: '🙂', score: 4 },
-    { label: 'มากที่สุด', emoji: '😁', score: 5 },
+    { label: 'ทำไม่ได้เลย', score: 0 },
+    { label: 'ทำได้บ้าง', score: 1 },
+    { label: 'ทำได้ดี', score: 2 },
 ];
 
 function getLiteracyLevel(total: number, max: number) {
@@ -93,7 +91,7 @@ export default function AssessmentsPage() {
     const [pastResult, setPastResult] = useState<any>(null);
 
     const totalQuestions = domains.reduce((sum, d) => sum + d.questions.length, 0);
-    const maxScore = totalQuestions * 5;
+    const maxScore = totalQuestions * 2;
 
     useEffect(() => {
         if (!user) return;
@@ -252,7 +250,7 @@ export default function AssessmentsPage() {
                         : 'text-gray-500 hover:text-gray-700'
                     }`}
                 >
-                    📝 ทำก่อนเริ่มใช้แอป
+                    ทำก่อนเริ่มใช้แอป
                 </button>
                 <button 
                     onClick={() => { setTestType('post'); handleReset(); }}
@@ -262,7 +260,7 @@ export default function AssessmentsPage() {
                         : 'text-gray-500 hover:text-gray-700'
                     }`}
                 >
-                    🏆 ทบทวนหลังใช้แอป
+                    ทบทวนหลังใช้แอป
                 </button>
             </div>
 
@@ -301,24 +299,21 @@ export default function AssessmentsPage() {
                                         ข้อ {qIdx + 1}. {q}
                                     </h3>
                                     
-                                    <div className="grid grid-cols-5 gap-1 sm:gap-2">
+                                    <div className="grid grid-cols-3 gap-2 sm:gap-3">
                                         {scoreLabels.map((item) => {
                                             const isSelected = answers[`${currentDomain.id}_${qIdx}`] === item.score;
                                             return (
                                                 <button 
                                                     key={item.score}
                                                     onClick={() => handleAnswer(currentDomain.id, qIdx, item.score)}
-                                                    className={`flex flex-col items-center justify-center p-2 sm:p-3 rounded-xl sm:rounded-2xl border-2 transition-all active:scale-[0.95] ${
+                                                    className={`relative flex flex-col items-center justify-center p-3 sm:p-4 rounded-xl sm:rounded-2xl border-2 transition-all active:scale-[0.95] ${
                                                         isSelected 
                                                         ? 'bg-purple-50 border-purple-500 shadow-sm' 
                                                         : 'bg-white border-gray-200 hover:border-purple-300 hover:bg-purple-50/30'
                                                     }`}
                                                 >
-                                                    <span className={`text-2xl sm:text-3xl mb-1 ${isSelected ? 'scale-110' : 'grayscale-[50%] opacity-70'} transition-transform`}>
-                                                        {item.emoji}
-                                                    </span>
-                                                    <span className={`text-[10px] sm:text-xs font-semibold text-center leading-tight ${
-                                                        isSelected ? 'text-purple-700' : 'text-gray-500'
+                                                    <span className={`text-sm sm:text-base font-bold text-center leading-tight ${
+                                                        isSelected ? 'text-purple-700' : 'text-gray-600'
                                                     }`}>
                                                         {item.label}
                                                     </span>

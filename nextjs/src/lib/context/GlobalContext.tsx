@@ -6,9 +6,10 @@ import { createSPASassClientAuthenticated as createSPASassClient } from '@/lib/s
 
 
 type User = {
-    email: string;
+    email: string | null;
     id: string;
     registered_at: Date;
+    is_anonymous: boolean;
 };
 
 interface GlobalContextType {
@@ -32,9 +33,10 @@ export function GlobalProvider({ children }: { children: React.ReactNode }) {
                 const { data: { user } } = await client.auth.getUser();
                 if (user) {
                     setUser({
-                        email: user.email!,
+                        email: user.email ?? null,
                         id: user.id,
-                        registered_at: new Date(user.created_at)
+                        registered_at: new Date(user.created_at),
+                        is_anonymous: user.is_anonymous ?? false
                     });
                 } else {
                     throw new Error('User not found');

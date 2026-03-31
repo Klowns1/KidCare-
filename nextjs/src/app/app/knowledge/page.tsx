@@ -1,6 +1,7 @@
 "use client";
 import React, { useState, useEffect } from 'react';
-import { BookOpen, Search, ChevronDown, PlayCircle, Loader2, Sparkles, AlertCircle } from 'lucide-react';
+import { BookOpen, Search, ChevronDown, PlayCircle, Loader2, AlertCircle } from 'lucide-react';
+import Image from 'next/image';
 import { createSPASassClientAuthenticated as createSPASassClient } from '@/lib/supabase/client';
 
 interface Article {
@@ -55,8 +56,15 @@ export default function KnowledgePage() {
 
     // Get unique categories for the horizontal filter chips
     const categoriesSet = new Set<string>();
-    articles.forEach(a => categoriesSet.add(a.category || 'ทั่วไป'));
-    const categories = ['ทั้งหมด', ...Array.from(categoriesSet)];
+    articles.forEach(a => {
+        if (a.category) categoriesSet.add(a.category);
+    });
+    
+    // Default categories that should always be visible
+    const predefinedCategories = ['ทั้งหมด', 'โภชนาการ', 'สุขภาพฟัน', 'พัฒนาการ', 'ทั่วไป'];
+    // Merge DB categories with predefined (deduplicating)
+    predefinedCategories.forEach(c => categoriesSet.delete(c));
+    const categories = [...predefinedCategories, ...Array.from(categoriesSet)];
 
     // Apply filters
     const filteredArticles = articles.filter(a => {
@@ -66,13 +74,7 @@ export default function KnowledgePage() {
         return matchesCategory && matchesSearch;
     });
 
-    const getCategoryEmoji = (cat: string) => {
-        if (cat.includes('โภชนาการ') || cat.includes('อาหาร')) return '🍎';
-        if (cat.includes('ฟัน')) return '🦷';
-        if (cat.includes('พัฒนาการ')) return '🧸';
-        if (cat.includes('สุขภาพ')) return '🩺';
-        return '📑';
-    };
+
 
     return (
         <div className="max-w-2xl mx-auto p-4 sm:p-6 pb-24 space-y-6">
@@ -84,7 +86,7 @@ export default function KnowledgePage() {
                 </div>
                 <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">คลังความรู้คุณแม่</h1>
                 <p className="text-gray-500 text-sm mt-2 flex items-center justify-center gap-1">
-                    เคล็ดลับดีๆ เพื่อลูกรัก <Sparkles className="h-4 w-4 text-amber-400" />
+                    เคล็ดลับดีๆ เพื่อลูกรัก
                 </p>
             </div>
 
@@ -103,7 +105,7 @@ export default function KnowledgePage() {
             </div>
 
             {/* Category Chips Scroll */}
-            {!loading && categories.length > 1 && (
+            {!loading && (
                 <div className="flex gap-2 overflow-x-auto pb-4 pt-2 hide-scrollbar -mx-4 px-4 sm:mx-0 sm:px-0">
                     {categories.map(cat => (
                         <button 
@@ -115,7 +117,6 @@ export default function KnowledgePage() {
                                 : 'bg-white border-gray-100 text-gray-600 hover:border-gray-300'
                             }`}
                         >
-                            {cat !== 'ทั้งหมด' && <span className="mr-1.5">{getCategoryEmoji(cat)}</span>}
                             {cat}
                         </button>
                     ))}
@@ -142,13 +143,15 @@ export default function KnowledgePage() {
                             {/* Rich Image Header */}
                             {article.image_url ? (
                                 <div className="h-48 sm:h-56 w-full relative bg-gray-100">
-                                    <img 
+                                    <Image 
                                         src={article.image_url} 
                                         alt={article.title} 
-                                        className="w-full h-full object-cover" 
+                                        fill
+                                        sizes="(max-width: 768px) 100vw, 50vw"
+                                        className="object-cover" 
                                     />
                                     <div className="absolute top-4 left-4 bg-white/90 backdrop-blur-sm px-3 py-1 rounded-full text-xs font-bold text-amber-700 shadow-sm flex items-center gap-1">
-                                        <span>{getCategoryEmoji(article.category || '')}</span> {article.category || 'ทั่วไป'}
+                                        {article.category || 'ทั่วไป'}
                                     </div>
                                 </div>
                             ) : (
@@ -159,7 +162,7 @@ export default function KnowledgePage() {
                             <div className="p-5 sm:p-7">
                                 {!article.image_url && (
                                     <span className="inline-block px-3 py-1 rounded-full bg-amber-50 text-amber-700 text-xs font-bold mb-3">
-                                        {getCategoryEmoji(article.category || '')} {article.category || 'ทั่วไป'}
+                                        {article.category || 'ทั่วไป'}
                                     </span>
                                 )}
                                 <h3 className="text-lg sm:text-xl font-bold text-gray-900 mb-3 leading-snug">
@@ -174,7 +177,7 @@ export default function KnowledgePage() {
                                     onClick={() => setSelectedArticle(article)}
                                     className="w-full py-3.5 sm:py-4 bg-gray-50 text-amber-700 font-bold rounded-2xl border border-gray-100 hover:bg-amber-50 active:scale-[0.98] transition-all"
                                 >
-                                    อ่านเนื้อหาเต็ม 📖
+                                    อ่านเนื้อหาเต็ม
                                 </button>
                             </div>
                         </div>
@@ -199,7 +202,7 @@ export default function KnowledgePage() {
             {/* FAQ Accordion */}
             <div className="mt-10 mb-8">
                 <h3 className="text-xl font-bold flex items-center gap-2 mb-6 text-gray-900 px-2">
-                    <span className="text-2xl">❓</span> คุณแม่มักจะถามว่า... (FAQ)
+                    คุณแม่มักจะถามว่า... (FAQ)
                 </h3>
                 <div className="space-y-3">
                     {faqs.map((faq, idx) => (
@@ -236,7 +239,9 @@ export default function KnowledgePage() {
                         {/* Header Image if exists */}
                         <div className="relative flex-shrink-0">
                             {selectedArticle.image_url ? (
-                                <img src={selectedArticle.image_url} className="w-full h-48 sm:h-64 object-cover" alt={selectedArticle.title} />
+                                <div className="w-full h-48 sm:h-64 relative">
+                                    <Image src={selectedArticle.image_url} fill sizes="(max-width: 768px) 100vw, 80vw" className="object-cover" alt={selectedArticle.title} />
+                                </div>
                             ) : (
                                 <div className="w-full h-24 bg-gradient-to-r from-amber-400 to-orange-500" />
                             )}
@@ -251,7 +256,7 @@ export default function KnowledgePage() {
                         {/* Content Scrollable area */}
                         <div className="flex-1 overflow-y-auto p-6 sm:p-8">
                             <span className="inline-block px-3 py-1 rounded-full bg-amber-100 text-amber-800 text-sm font-bold mb-4">
-                                {getCategoryEmoji(selectedArticle.category || '')} {selectedArticle.category || 'ทั่วไป'}
+                                {selectedArticle.category || 'ทั่วไป'}
                             </span>
                             
                             <h2 className="text-2xl sm:text-3xl font-black text-gray-900 mb-6 leading-tight">

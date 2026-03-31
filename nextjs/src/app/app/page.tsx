@@ -1,7 +1,7 @@
 "use client";
 import React from 'react';
 import { useGlobal } from '@/lib/context/GlobalContext';
-import { CalendarDays, Baby, Bell, ArrowRight, ShieldCheck, ChevronRight } from 'lucide-react';
+import { CalendarDays, Baby, Bell, ArrowRight, ShieldCheck, ChevronRight, Users, LineChart, Activity, ClipboardList, BookOpen, Phone } from 'lucide-react';
 import Link from 'next/link';
 
 export default function DashboardContent() {
@@ -31,65 +31,62 @@ export default function DashboardContent() {
     // Grouped menu categories for mother-friendly UX
     const menuCategories = [
         {
-            label: '👶 ข้อมูลลูกน้อย',
+            label: 'ข้อมูลลูกน้อย',
+            icon: Baby,
             items: [
                 {
                     title: "โปรไฟล์ลูก+ผู้ปกครอง",
                     description: "ข้อมูลส่วนตัวครอบครัว",
-                    emoji: "👨‍👩‍👧",
+                    icon: Users,
                     href: "/app/profile",
-                    color: "from-blue-500 to-blue-600",
-                    bg: "bg-blue-50",
+                    color: "text-blue-600 bg-blue-100",
                 },
                 {
                     title: "กราฟเจริญเติบโต",
                     description: "น้ำหนัก ส่วนสูง ลูก",
-                    emoji: "📈",
+                    icon: LineChart,
                     href: "/app/growth",
-                    color: "from-orange-500 to-orange-600",
-                    bg: "bg-orange-50",
+                    color: "text-orange-600 bg-orange-100",
                 },
             ]
         },
         {
-            label: '📋 บันทึกและประเมิน',
+            label: 'บันทึกและประเมิน',
+            icon: ClipboardList,
             items: [
                 {
                     title: "บันทึกพฤติกรรม",
                     description: "สุขภาพเด็กประจำวัน",
-                    emoji: "✅",
+                    icon: Activity,
                     href: "/app/behavior",
-                    color: "from-green-500 to-green-600",
-                    bg: "bg-green-50",
+                    color: "text-green-600 bg-green-100",
                 },
                 {
                     title: "แบบประเมินพัฒนาการ",
                     description: "Pre-test / Post-test",
-                    emoji: "📝",
+                    icon: ClipboardList,
                     href: "/app/assessments",
-                    color: "from-purple-500 to-purple-600",
-                    bg: "bg-purple-50",
+                    color: "text-purple-600 bg-purple-100",
                 },
             ]
         },
         {
-            label: '📚 เรียนรู้และติดต่อ',
+            label: 'เรียนรู้และติดต่อ',
+            icon: BookOpen,
             items: [
                 {
                     title: "คลังความรู้",
                     description: "บทความดูแลเด็ก",
-                    emoji: "📚",
+                    icon: BookOpen,
                     href: "/app/knowledge",
-                    color: "from-amber-500 to-amber-600",
-                    bg: "bg-amber-50",
+                    color: "text-amber-600 bg-amber-100",
                 },
                 {
                     title: "ติดต่อสาธารณสุข",
                     description: "ปรึกษาเจ้าหน้าที่",
-                    emoji: "📞",
+                    icon: Phone,
                     href: "/app/contact",
-                    color: "from-teal-500 to-teal-600",
-                    bg: "bg-teal-50",
+                    color: "text-teal-600 bg-teal-100",
                 },
             ]
         },
@@ -110,7 +107,7 @@ export default function DashboardContent() {
                         <span className="text-xs font-medium tracking-wide text-green-100 uppercase">KidCare ร้อยเอ็ด</span>
                     </div>
                     <h1 className="text-2xl sm:text-3xl font-extrabold mb-2">
-                        สวัสดีค่ะ, {displayName}! 👋
+                        สวัสดีค่ะ, {displayName}!
                     </h1>
                     <p className="text-green-100 text-sm sm:text-base mb-5 leading-relaxed max-w-md">
                         ดูแลลูกน้อยให้เติบโตอย่างสมวัย ด้วยเครื่องมือที่ออกแบบมาเพื่อคุณ
@@ -137,7 +134,9 @@ export default function DashboardContent() {
             {/* =============================== */}
             {menuCategories.map((category) => (
                 <div key={category.label}>
-                    <h2 className="text-lg font-bold text-gray-800 mb-3 px-1">{category.label}</h2>
+                    <h2 className="text-lg font-bold text-gray-800 mb-3 px-1 flex items-center gap-2">
+                        <category.icon className="w-5 h-5 text-gray-400" /> {category.label}
+                    </h2>
                     <div className="grid grid-cols-2 gap-3 sm:gap-4">
                         {category.items.map((item) => (
                             <Link
@@ -146,8 +145,8 @@ export default function DashboardContent() {
                                 className="group block"
                             >
                                 <div className="bg-white rounded-2xl border border-gray-100 p-5 sm:p-6 shadow-sm hover:shadow-md transition-all active:scale-[0.97] h-full">
-                                    <div className="text-3xl sm:text-4xl mb-3">
-                                        {item.emoji}
+                                    <div className={`w-12 h-12 flex items-center justify-center rounded-2xl mb-4 ${item.color}`}>
+                                        <item.icon className="w-6 h-6" />
                                     </div>
                                     <h3 className="text-sm sm:text-base font-bold text-gray-900 mb-1 leading-tight">
                                         {item.title}
@@ -169,7 +168,9 @@ export default function DashboardContent() {
             {/*  QUICK LINKS (bottom cards)     */}
             {/* =============================== */}
             <div className="space-y-3">
-                <h2 className="text-lg font-bold text-gray-800 px-1">🔔 แจ้งเตือนและอื่นๆ</h2>
+                <h2 className="text-lg font-bold text-gray-800 px-1 flex items-center gap-2">
+                    <Bell className="w-5 h-5 text-gray-400" /> แจ้งเตือนและอื่นๆ
+                </h2>
 
                 {/* Notification empty state */}
                 <div className="bg-white rounded-2xl border border-gray-100 p-6 shadow-sm">
@@ -185,18 +186,7 @@ export default function DashboardContent() {
                 </div>
 
                 {/* Quick action links */}
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                    <Link href="/app/user-settings" className="flex items-center gap-4 p-4 bg-white rounded-2xl border border-gray-100 shadow-sm hover:shadow-md transition-all active:scale-[0.98] group">
-                        <div className="w-12 h-12 rounded-2xl bg-gray-100 flex items-center justify-center text-2xl group-hover:bg-green-50 transition-colors flex-shrink-0">
-                            ⚙️
-                        </div>
-                        <div className="min-w-0">
-                            <p className="font-semibold text-gray-800 text-sm">จัดการบัญชี</p>
-                            <p className="text-xs text-gray-400">รหัสผ่าน, อีเมล</p>
-                        </div>
-                        <ChevronRight className="h-5 w-5 text-gray-300 ml-auto flex-shrink-0" />
-                    </Link>
-
+                <div className="grid grid-cols-1 gap-3">
                     <a href="tel:0828899994" className="flex items-center gap-4 p-4 bg-white rounded-2xl border border-gray-100 shadow-sm hover:shadow-md transition-all active:scale-[0.98] group">
                         <div className="w-12 h-12 rounded-2xl bg-green-50 flex items-center justify-center text-2xl group-hover:bg-green-100 transition-colors flex-shrink-0">
                             🆘

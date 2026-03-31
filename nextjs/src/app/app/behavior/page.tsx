@@ -30,7 +30,7 @@ const defaultEntry: BehaviorEntry = {
 
 const sections = [
     {
-        title: '🍎 ด้านโภชนาการ',
+        title: 'ด้านโภชนาการ',
         color: 'border-orange-100',
         bgColor: 'bg-orange-50/50',
         headerColor: 'text-orange-800',
@@ -43,7 +43,7 @@ const sections = [
         ]
     },
     {
-        title: '🦷 ด้านสุขภาพฟัน',
+        title: 'ด้านสุขภาพฟัน',
         color: 'border-blue-100',
         bgColor: 'bg-blue-50/50',
         headerColor: 'text-blue-800',
@@ -55,7 +55,7 @@ const sections = [
         ]
     },
     {
-        title: '🧒 ด้านพัฒนาการและจิตใจ',
+        title: 'ด้านพัฒนาการและจิตใจ',
         color: 'border-purple-100',
         bgColor: 'bg-purple-50/50',
         headerColor: 'text-purple-800',
@@ -250,14 +250,14 @@ export default function BehaviorPage() {
 
             {error && (
                 <div className="p-4 text-sm text-red-700 bg-red-50 rounded-2xl border border-red-100 flex items-start gap-2 shadow-sm">
-                    <span className="text-lg">⚠️</span>
+                    <AlertCircle className="w-5 h-5 flex-shrink-0" />
                     <span>{error}</span>
                 </div>
             )}
 
             {saved && (
                 <div className="p-4 text-sm text-green-800 bg-green-50 rounded-2xl border border-green-200 flex items-start gap-2 shadow-sm animate-fade-in">
-                    <span className="text-lg border border-green-400 rounded-full bg-green-100 p-0.5">✅</span>
+                    <CheckCircle2 className="w-6 h-6 text-green-600 flex-shrink-0" />
                     <span className="font-bold">บันทึกข้อมูลประจำวันสำเร็จแล้ว เยี่ยมมาก!</span>
                 </div>
             )}
@@ -281,7 +281,7 @@ export default function BehaviorPage() {
             {/* Progress */}
             <div className="bg-green-50 p-5 rounded-3xl border border-green-100">
                 <div className="flex justify-between items-end mb-2">
-                    <span className="text-green-800 font-bold">ความสำเร็จวันนี้ ⭐️</span>
+                    <span className="text-green-800 font-bold">ความสำเร็จวันนี้</span>
                     <span className="text-green-700 font-bold text-lg bg-white px-3 py-1 rounded-xl shadow-sm">{completedCount} / {totalItems}</span>
                 </div>
                 <div className="w-full bg-green-200/50 rounded-full h-3 overflow-hidden shadow-inner">
@@ -331,7 +331,7 @@ export default function BehaviorPage() {
 
             {/* Notes Section */}
             <div className="bg-white p-5 sm:p-6 text-sm text-red-700 bg-red-50 rounded-3xl border border-gray-100 shadow-sm">
-                <label className="block text-base font-bold text-gray-800 mb-3">📝 รายละเอียดเพิ่มเติม / หมายเหตุ</label>
+                <label className="block text-base font-bold text-gray-800 mb-3">รายละเอียดเพิ่มเติม / หมายเหตุ</label>
                 <textarea 
                     value={entry.notes} 
                     onChange={e => setEntry({ ...entry, notes: e.target.value })}

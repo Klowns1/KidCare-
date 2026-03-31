@@ -2,6 +2,7 @@
 import React, { useState, useEffect } from 'react';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import { LineChart as LineChartIcon, Plus, Save, Loader2, AlertCircle } from 'lucide-react';
+import Link from 'next/link';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 import { useGlobal } from '@/lib/context/GlobalContext';
 import { createSPASassClientAuthenticated as createSPASassClient } from '@/lib/supabase/client';
@@ -140,7 +141,7 @@ export default function GrowthPage() {
 
             {saved && (
                 <div className="p-3 bg-green-50 border border-green-200 rounded-lg text-green-700 text-sm">
-                    ✅ บันทึกข้อมูลสำเร็จ!
+                    บันทึกข้อมูลสำเร็จ!
                 </div>
             )}
 
@@ -148,8 +149,8 @@ export default function GrowthPage() {
                 <div className="p-4 bg-orange-50 border border-orange-200 text-orange-800 rounded-lg flex gap-3">
                     <AlertCircle className="h-5 w-5 flex-shrink-0 mt-0.5" />
                     <div>
-                        <p className="font-medium">ไม่พบข้อมูลเด็ก</p>
-                        <p className="text-sm mt-1">กรุณาเพิ่มข้อมูลเด็กในหน้า Profile ก่อนใช้งานกราฟการเจริญเติบโต</p>
+                        <p className="font-medium">ไม่พบข้อมูลลูกน้อย</p>
+                        <p className="text-sm mt-1">กรุณาเพิ่มข้อมูลเด็กในหน้า <Link href="/app/profile" className="font-bold underline">โปรไฟล์</Link> ก่อนใช้งานกราฟการเจริญเติบโตคะ/ครับ</p>
                     </div>
                 </div>
             )}
@@ -200,7 +201,7 @@ export default function GrowthPage() {
             {/* Weight Chart */}
             <Card>
                 <CardHeader>
-                    <CardTitle className="text-lg">📈 กราฟน้ำหนัก (กก.)</CardTitle>
+                    <CardTitle className="text-lg">กราฟน้ำหนัก (กก.)</CardTitle>
                 </CardHeader>
                 <CardContent>
                     <ResponsiveContainer width="100%" height={300}>
@@ -219,7 +220,7 @@ export default function GrowthPage() {
             {/* Height Chart */}
             <Card>
                 <CardHeader>
-                    <CardTitle className="text-lg">📏 กราฟส่วนสูง (ซม.)</CardTitle>
+                    <CardTitle className="text-lg">กราฟส่วนสูง (ซม.)</CardTitle>
                 </CardHeader>
                 <CardContent>
                     <ResponsiveContainer width="100%" height={300}>
@@ -238,7 +239,7 @@ export default function GrowthPage() {
             {/* Data Table */}
             <Card>
                 <CardHeader>
-                    <CardTitle className="text-lg">📋 ข้อมูลที่บันทึก</CardTitle>
+                    <CardTitle className="text-lg">ข้อมูลที่บันทึก</CardTitle>
                 </CardHeader>
                 <CardContent>
                     <div className="overflow-x-auto">

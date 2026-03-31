@@ -1,6 +1,6 @@
 "use client";
 import React, { useState, useEffect } from 'react';
-import { Loader2 } from 'lucide-react';
+import { Loader2, Users, Baby, AlertCircle, CheckCircle2 } from 'lucide-react';
 import { useGlobal } from '@/lib/context/GlobalContext';
 import { createSPASassClientAuthenticated as createSPASassClient } from '@/lib/supabase/client';
 
@@ -154,16 +154,33 @@ export default function ProfilePage() {
             const supabaseWrapper = await createSPASassClient();
             const supabase = supabaseWrapper.getSupabaseClient();
 
+            if (!child.gender || !child.birth_date) {
+                setError("กรุณาระบุเพศและวันเกิดของลูกน้อย");
+                setSaving(false);
+                return;
+            }
+
             // Fetch the actual parent_profiles.id first (FK references parent_profiles.id, not auth.users.id)
-            const { data: parentRow, error: parentFetchError } = await supabase
+            const { data: parentData, error: parentFetchError } = await supabase
                 .from('parent_profiles')
                 .select('id')
                 .eq('user_id', user.id)
                 .maybeSingle();
 
+            let parentRow = parentData;
+
             if (parentFetchError || !parentRow) {
-                throw new Error("กรุณาบันทึก 'ข้อมูลผู้ปกครอง' ก่อนทำการบันทึกข้อมูลเด็กคะ/ครับ");
+                // Silently create an empty parent profile
+                const { data: newParent, error: upsertError } = await supabase
+                    .from('parent_profiles')
+                    .upsert({ user_id: user.id }, { onConflict: 'user_id' })
+                    .select('id')
+                    .single();
+                
+                if (upsertError || !newParent) throw new Error("Failed to auto-create parent profile");
+                parentRow = newParent;
             }
+
 
             const childPayload = {
                 parent_id: parentRow.id,
@@ -204,7 +221,7 @@ export default function ProfilePage() {
                 setChild({ ...child, id: data.id });
             }
 
-            setSuccess('บันทึกข้อมูลลูกน้อยเรียบร้อยแล้ว 👶');
+            setSuccess('บันทึกข้อมูลลูกน้อยเรียบร้อยแล้ว');
             setTimeout(() => setSuccess(''), 3000);
         } catch (err: unknown) {
             console.error(err);
@@ -229,7 +246,6 @@ export default function ProfilePage() {
 
     return (
         <div className="max-w-2xl mx-auto p-4 sm:p-6 space-y-6">
-            
             {/* Header */}
             <div className="text-center mb-6">
                 <div className="inline-flex items-center justify-center p-3 bg-green-100 rounded-full mb-3 text-2xl">
@@ -242,14 +258,14 @@ export default function ProfilePage() {
             {/* Notifications */}
             {error && (
                 <div className="p-4 text-sm text-red-700 bg-red-50 rounded-2xl border border-red-100 flex items-start gap-2">
-                    <span className="text-lg">⚠️</span>
+                    <AlertCircle className="w-5 h-5 flex-shrink-0" />
                     <span>{error}</span>
                 </div>
             )}
 
             {success && (
                 <div className="p-4 text-sm text-green-800 bg-green-50 rounded-2xl border border-green-200 flex items-start gap-2">
-                    <span className="text-lg">✅</span>
+                    <CheckCircle2 className="w-5 h-5 flex-shrink-0" />
                     <span>{success}</span>
                 </div>
             )}
@@ -264,17 +280,18 @@ export default function ProfilePage() {
                         : 'text-gray-500 hover:text-gray-700'
                     }`}
                 >
-                    <span className="text-xl">👩‍👦</span> ข้อมูลผู้ปกครอง
+                    <Users className="w-5 h-5" /> ข้อมูลผู้ปกครอง
                 </button>
                 <button 
                     onClick={() => setActiveTab('child')}
-                    className={`flex-1 flex justify-center items-center gap-2 py-3 rounded-xl font-bold transition-all ${
+                    className={`flex-1 flex justify-center items-center gap-2 py-3 rounded-xl font-bold transition-all relative ${
                         activeTab === 'child' 
                         ? 'bg-white shadow-sm text-green-700' 
                         : 'text-gray-500 hover:text-gray-700'
                     }`}
                 >
-                    <span className="text-xl">👶</span> ข้อมูลลูกน้อย
+                    <Baby className="w-5 h-5" /> ข้อมูลลูกน้อย
+                    {(!child.gender || !child.birth_date) && <span className="absolute top-2 right-2 w-2.5 h-2.5 bg-red-500 rounded-full border-2 border-white"></span>}
                 </button>
             </div>
 
@@ -295,21 +312,21 @@ export default function ProfilePage() {
                     </div>
 
                     <div>
-                        <label className={labelClass}>เพศ</label>
+                        <label className={labelClass}>เพศ <span className="text-gray-400 font-normal text-xs">(ไม่บังคับ)</span></label>
                         <div className="grid grid-cols-2 gap-3">
                             {['female', 'male'].map((g) => (
                                 <label key={g} className={`flex items-center justify-center p-4 rounded-2xl border-2 cursor-pointer transition-all ${
                                     parent.gender === g ? 'border-green-500 bg-green-50 text-green-700 font-bold' : 'border-gray-100 bg-gray-50 text-gray-600'
                                 }`}>
                                     <input type="radio" name="gender" value={g} checked={parent.gender === g} onChange={handleParentChange} className="hidden" />
-                                    {g === 'female' ? 'หญิง 👩🏻' : 'ชาย 👨🏻'}
+                                    {g === 'female' ? 'หญิง' : 'ชาย'}
                                 </label>
                             ))}
                         </div>
                     </div>
                     
                     <div>
-                        <label className={labelClass}>อายุ (ปี)</label>
+                        <label className={labelClass}>อายุ (ปี) <span className="text-gray-400 font-normal text-xs">(ไม่บังคับ)</span></label>
                         <input type="number" name="age" value={parent.age} onChange={handleParentChange} className={inputClass} placeholder="เช่น 30" />
                     </div>
 
@@ -351,21 +368,21 @@ export default function ProfilePage() {
                 <div className="bg-white rounded-3xl shadow-sm border border-gray-100 p-5 sm:p-8 space-y-6 animate-fade-in">
                     
                     <div>
-                        <label className={labelClass}>เพศของลูก</label>
+                        <label className={labelClass}>เพศของลูก <span className="text-red-500">*</span></label>
                         <div className="grid grid-cols-2 gap-3">
                             {['male', 'female'].map((g) => (
                                 <label key={g} className={`flex items-center justify-center p-4 rounded-2xl border-2 cursor-pointer transition-all ${
                                     child.gender === g ? 'border-blue-500 bg-blue-50 text-blue-700 font-bold' : 'border-gray-100 bg-gray-50 text-gray-600'
                                 }`}>
                                     <input type="radio" name="gender" value={g} checked={child.gender === g} onChange={handleChildChange} className="hidden" />
-                                    {g === 'male' ? 'เด็กชาย 👦🏻' : 'เด็กหญิง 👧🏻'}
+                                    {g === 'male' ? 'เด็กชาย' : 'เด็กหญิง'}
                                 </label>
                             ))}
                         </div>
                     </div>
 
                     <div>
-                        <label className={labelClass}>วันเกิดลูก (พ.ศ. / ค.ศ. ตามปฏิทิน)</label>
+                        <label className={labelClass}>วันเกิดลูก (พ.ศ. / ค.ศ. ตามปฏิทิน) <span className="text-red-500">*</span></label>
                         <input type="date" name="birth_date" value={child.birth_date} onChange={handleChildChange} className={inputClass} max={new Date().toISOString().split('T')[0]} />
                     </div>
 
@@ -381,41 +398,41 @@ export default function ProfilePage() {
                     </div>
 
                     <div className="p-4 bg-orange-50 rounded-2xl border border-orange-100">
-                        <label className="block text-sm font-bold text-orange-800 mb-2">🦷 จำนวนฟันผุ (ซี่)</label>
+                        <label className="block text-sm font-bold text-orange-800 mb-2">จำนวนฟันผุ (ซี่)</label>
                         <input type="number" name="decayed_teeth" value={child.decayed_teeth} onChange={handleChildChange} className="block w-full rounded-xl border border-orange-200 bg-white px-4 py-3 text-base outline-none focus:border-orange-500" placeholder="0" min="0" />
                     </div>
 
                     {/* Quick DSPM Section */}
                     <div className="mt-8 pt-6 border-t border-gray-100">
                         <h3 className="text-xl font-bold mb-4 flex items-center gap-2">
-                            <span>⭐</span> ประเมินพัฒนาการ (DSPM) คร่าวๆ
+                            ประเมินพัฒนาการ (DSPM) คร่าวๆ
                         </h3>
                         <div className="space-y-4">
                             {[
-                                { name: 'dspm_gross_motor', emoji: '🏃', label: '1. เคลื่อนไหวร่างกาย' },
-                                { name: 'dspm_fine_motor', emoji: '🤏', label: '2. ใช้มือและตา' },
-                                { name: 'dspm_language_comprehension', emoji: '👂', label: '3. เข้าใจภาษาที่พูดด้วย' },
-                                { name: 'dspm_language_use', emoji: '🗣️', label: '4. ใช้ภาษาพูดสื่อสาร' },
-                                { name: 'dspm_self_help', emoji: '👕', label: '5. ช่วยเหลือตนเองและเข้าสังคม' },
+                                { name: 'dspm_gross_motor', label: '1. เคลื่อนไหวร่างกาย' },
+                                { name: 'dspm_fine_motor', label: '2. ใช้มือและตา' },
+                                { name: 'dspm_language_comprehension', label: '3. เข้าใจภาษาที่พูดด้วย' },
+                                { name: 'dspm_language_use', label: '4. ใช้ภาษาพูดสื่อสาร' },
+                                { name: 'dspm_self_help', label: '5. ช่วยเหลือตนเองและเข้าสังคม' },
                             ].map(field => (
                                 <div key={field.name} className="bg-gray-50 p-4 rounded-2xl">
-                                    <label className="block text-sm font-bold text-gray-800 mb-2">{field.emoji} {field.label}</label>
+                                    <label className="block text-sm font-bold text-gray-800 mb-2">{field.label}</label>
                                     <div className="grid grid-cols-2 gap-2">
                                         <button type="button" 
                                             onClick={() => setChild({...child, [field.name]: 'normal'})}
-                                            className={`py-3 rounded-xl border font-medium text-sm transition-all ${
+                                            className={`py-3 rounded-xl border font-medium text-sm transition-all flex justify-center items-center gap-2 ${
                                                 (child as Record<string, string>)[field.name] === 'normal' ? 'bg-green-500 text-white border-green-600 shadow-sm' : 'bg-white text-gray-600 border-gray-200 hover:bg-gray-100'
                                             }`}
                                         >
-                                            ✅ ปกติสมวัย
+                                            <CheckCircle2 className="w-4 h-4" /> ปกติสมวัย
                                         </button>
                                         <button type="button" 
                                             onClick={() => setChild({...child, [field.name]: 'suspected'})}
-                                            className={`py-3 rounded-xl border font-medium text-sm transition-all ${
+                                            className={`py-3 rounded-xl border font-medium text-sm transition-all flex justify-center items-center gap-2 ${
                                                 (child as Record<string, string>)[field.name] === 'suspected' ? 'bg-orange-500 text-white border-orange-600 shadow-sm' : 'bg-white text-gray-600 border-gray-200 hover:bg-gray-100'
                                             }`}
                                         >
-                                            ⚠️ น่าจะล่าช้า
+                                            <AlertCircle className="w-4 h-4" /> น่าจะล่าช้า
                                         </button>
                                     </div>
                                 </div>

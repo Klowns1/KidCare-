@@ -35,12 +35,27 @@ export default function RegisterPage() {
 
         try {
             const supabase = await createSPASassClient();
-            const { data, error: signUpError } = await supabase.registerEmail(email, password);
+            
+            // Get current session
+            const client = supabase.getSupabaseClient();
+            const { data: { user } } = await client.auth.getUser();
+
+            let signUpResult;
+            
+            if (user?.is_anonymous) {
+                // Link the anonymous account to the new email/password
+                signUpResult = await supabase.linkAnonymousUser(email, password);
+            } else {
+                // Create a brand new account
+                signUpResult = await supabase.registerEmail(email, password);
+            }
+
+            const { data, error: signUpError } = signUpResult;
 
             if (signUpError) throw signUpError;
 
             // If Confirm Email is still enabled in Supabase, session will be null here.
-            if (!data?.session) {
+            if (!user?.is_anonymous && 'session' in data && !data.session) {
                 throw new Error("ระบบยังต้องการการยืนยันอีเมลอยู่ กรุณาเข้าไปปิด Confirm Email ใน Supabase Dashboard ก่อนครับ");
             }
 

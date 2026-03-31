@@ -1,6 +1,6 @@
 "use client";
 import React from 'react';
-import { AlertTriangle, Headset, ArrowRight, HeartPulse } from 'lucide-react';
+import { AlertTriangle, Headset, ArrowRight, HeartPulse, Phone, Building2, Smartphone, MessageCircle, Calendar } from 'lucide-react';
 import Link from 'next/link';
 
 export default function ContactPage() {
@@ -32,7 +32,7 @@ export default function ContactPage() {
                 </p>
                 
                 <a href="tel:1669" className="relative z-10 flex w-full justify-center items-center gap-2 py-5 px-6 rounded-2xl bg-red-600 text-white font-black text-2xl shadow-lg shadow-red-500/30 hover:scale-[1.02] active:scale-[0.98] transition-all">
-                    📞 โทร 1669
+                    <Phone className="h-6 w-6" /> โทร 1669
                 </a>
             </div>
 
@@ -41,23 +41,23 @@ export default function ContactPage() {
                 {/* Local Health Center Call */}
                 <a href="tel:0828899994" className="block bg-white rounded-3xl p-5 border border-gray-100 shadow-sm hover:border-green-300 hover:shadow-md transition-all active:scale-[0.98] group relative overflow-hidden">
                     <div className="absolute top-0 right-0 w-20 h-20 bg-green-50 rounded-bl-full -mr-4 -mt-4 transition-transform group-hover:scale-110"></div>
-                    <div className="h-12 w-12 bg-green-100 text-green-600 rounded-2xl flex items-center justify-center mb-4 relative z-10 text-2xl">
-                        🏥
+                    <div className="h-12 w-12 bg-green-100 text-green-600 rounded-2xl flex items-center justify-center mb-4 relative z-10">
+                        <Building2 className="w-6 h-6" />
                     </div>
                     <h3 className="font-bold text-gray-900 text-lg mb-1 relative z-10">สายตรง รพ.สต.</h3>
                     <p className="text-gray-500 text-sm leading-relaxed mb-4 relative z-10 h-10">
                         ปรึกษาเจ้าหน้าที่สาธารณสุขในพื้นที่ร้อยเอ็ด
                     </p>
-                    <div className="flex items-center text-green-600 font-bold text-sm bg-green-50 w-fit px-3 py-1.5 rounded-lg">
-                        📱 082-889-9994
+                    <div className="flex items-center text-green-600 font-bold text-sm bg-green-50 w-fit px-3 py-1.5 rounded-lg gap-2">
+                        <Smartphone className="w-4 h-4" /> 082-889-9994
                     </div>
                 </a>
 
                 {/* Chat */}
                 <Link href="/app/chat" className="block bg-white rounded-3xl p-5 border border-gray-100 shadow-sm hover:border-blue-300 hover:shadow-md transition-all active:scale-[0.98] group relative overflow-hidden">
                     <div className="absolute top-0 right-0 w-20 h-20 bg-blue-50 rounded-bl-full -mr-4 -mt-4 transition-transform group-hover:scale-110"></div>
-                    <div className="h-12 w-12 bg-blue-100 text-blue-600 rounded-2xl flex items-center justify-center mb-4 relative z-10 text-2xl">
-                        💬
+                    <div className="h-12 w-12 bg-blue-100 text-blue-600 rounded-2xl flex items-center justify-center mb-4 relative z-10">
+                        <MessageCircle className="w-6 h-6" />
                     </div>
                     <h3 className="font-bold text-gray-900 text-lg mb-1 relative z-10">แชทปรึกษา</h3>
                     <p className="text-gray-500 text-sm leading-relaxed mb-4 relative z-10 h-10">
@@ -70,8 +70,8 @@ export default function ContactPage() {
 
                 {/* Appointments */}
                 <Link href="/app/appointments" className="block sm:col-span-2 bg-gradient-to-r from-purple-50 to-pink-50 rounded-3xl p-5 sm:p-6 border border-purple-100 shadow-sm hover:shadow-md transition-all active:scale-[0.98] group flex items-center gap-4">
-                    <div className="h-14 w-14 sm:h-16 sm:w-16 bg-white text-purple-600 rounded-2xl flex items-center justify-center shadow-sm flex-shrink-0 text-3xl">
-                        📅
+                    <div className="h-14 w-14 sm:h-16 sm:w-16 bg-white text-purple-600 rounded-2xl flex items-center justify-center shadow-sm flex-shrink-0">
+                        <Calendar className="w-7 h-7 sm:w-8 sm:h-8" />
                     </div>
                     <div className="flex-1">
                         <h3 className="font-bold text-gray-900 text-lg mb-0.5">นัดหมายออนไลน์</h3>

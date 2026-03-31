@@ -100,7 +100,7 @@ export default function SSOButtons({ onError }: SSOButtonsProps) {
                     <div className="w-full border-t border-gray-300"/>
                 </div>
                 <div className="relative flex justify-center text-sm">
-                    <span className="bg-white px-2 text-gray-500">Or continue with</span>
+                    <span className="bg-white px-2 text-gray-500">หรือ</span>
                 </div>
             </div>
 
@@ -119,20 +119,20 @@ export default function SSOButtons({ onError }: SSOButtonsProps) {
                                 </div>
                             </div>
                             <span className="mx-auto text-sm font-semibold">
-                Continue with {config.name}
+                เข้าสู่ระบบด้วย {config.name}
               </span>
                         </button>
                     );
                 })}
             </div>
             <div className="mt-4 text-center text-xs text-gray-500">
-                By creating an account via selected provider, you agree to our{' '}
+                การเข้าสู่ระบบผ่านซัพพลายเออร์ที่เลือก ถือว่าคุณยอมรับ{' '}
                 <Link href="/legal/terms" className="text-blue-600 hover:text-blue-800 underline">
-                    Terms and Conditions
+                    ข้อกำหนดและเงื่อนไข
                 </Link>
-                {' '}and{' '}
+                {' '}และ{' '}
                 <Link href="/legal/privacy" className="text-blue-600 hover:text-blue-800 underline">
-                    Privacy Policy
+                    นโยบายความเป็นส่วนตัว
                 </Link>
             </div>
         </div>

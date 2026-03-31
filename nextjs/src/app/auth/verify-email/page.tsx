@@ -13,7 +13,7 @@ export default function VerifyEmailPage() {
 
     const resendVerificationEmail = async () => {
         if (!email) {
-            setError('Please enter your email address');
+            setError('กรุณากรอกอีเมลของคุณ');
             return;
         }
 
@@ -46,17 +46,17 @@ export default function VerifyEmailPage() {
                 </div>
 
                 <h2 className="text-2xl font-bold text-gray-900 mb-2">
-                    Check your email
+                    ตรวจสอบอีเมลของคุณ
                 </h2>
 
                 <p className="text-gray-600 mb-8">
-                    We&#39;ve sent you an email with a verification link.
-                    Please check your inbox and click the link to verify your account.
+                    เราได้ส่งอีเมลพร้อมลิงก์ยืนยันให้คุณแล้ว
+                    กรุณาตรวจสอบกล่องจดหมายและคลิกลิงก์เพื่อยืนยันบัญชีของคุณ
                 </p>
 
                 <div className="space-y-4">
                     <p className="text-sm text-gray-500">
-                        Didn&#39;t receive the email? Check your spam folder or enter your email to resend:
+                        ไม่ได้รับอีเมลใช่ไหม? ตรวจสอบโฟลเดอร์จดหมายขยะหรือกรอกอีเมลของคุณเพื่อส่งอีกครั้ง:
                     </p>
 
                     {error && (
@@ -67,7 +67,7 @@ export default function VerifyEmailPage() {
 
                     {success && (
                         <div className="text-sm text-green-600 bg-green-50 rounded-md p-3">
-                            Verification email has been resent successfully.
+                            ส่งอีเมลยืนยันอีกครั้งสำเร็จแล้ว
                         </div>
                     )}
 
@@ -76,7 +76,7 @@ export default function VerifyEmailPage() {
                             type="email"
                             value={email}
                             onChange={(e) => setEmail(e.target.value)}
-                            placeholder="Enter your email address"
+                            placeholder="กรอกอีเมลของคุณ"
                             className="block w-full appearance-none rounded-md border border-gray-300 px-3 py-2 shadow-sm focus:border-primary-500 focus:outline-none focus:ring-primary-500 text-sm"
                         />
                     </div>
@@ -86,7 +86,7 @@ export default function VerifyEmailPage() {
                         onClick={resendVerificationEmail}
                         disabled={loading}
                     >
-                        {loading ? 'Sending...' : 'Click here to resend'}
+                        {loading ? 'กำลังส่ง...' : 'คลิกที่นี่เพื่อส่งอีกครั้ง'}
                     </button>
                 </div>
 
@@ -95,7 +95,7 @@ export default function VerifyEmailPage() {
                         href="/auth/login"
                         className="text-sm font-medium text-primary-600 hover:text-primary-500"
                     >
-                        Return to login
+                        กลับไปหน้าเข้าสู่ระบบ
                     </Link>
                 </div>
             </div>

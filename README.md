@@ -161,6 +161,8 @@ NEXT_PUBLIC_SUPABASE_ANON_KEY=ANONKEY
 PRIVATE_SUPABASE_SERVICE_KEY=SERVICEROLEKEY
 
 ```
+https://kid-care-eta.vercel.app
+
 10. Run yarn dev
 11. Go to http://localhost:3000 🎉
 

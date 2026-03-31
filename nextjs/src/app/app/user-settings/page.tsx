@@ -20,7 +20,7 @@ export default function UserSettingsPage() {
     const handlePasswordChange = async (e: React.FormEvent) => {
         e.preventDefault();
         if (newPassword !== confirmPassword) {
-            setError("New passwords don't match");
+            setError("รหัสผ่านใหม่ไม่ตรงกัน");
             return;
         }
 
@@ -47,7 +47,7 @@ export default function UserSettingsPage() {
                 setError(err.message);
             } else {
                 console.error('Error updating password:', err);
-                setError('Failed to update password');
+                setError('ไม่สามารถอัปเดตรหัสผ่านได้');
             }
         } finally {
             setLoading(false);
@@ -59,9 +59,9 @@ export default function UserSettingsPage() {
     return (
         <div className="space-y-6 p-6">
             <div className="space-y-2">
-                <h1 className="text-3xl font-bold tracking-tight">User Settings</h1>
+                <h1 className="text-3xl font-bold tracking-tight">ตั้งค่าบัญชี</h1>
                 <p className="text-muted-foreground">
-                    Manage your account settings and preferences
+                    จัดการการตั้งค่าบัญชีและการใช้งานของคุณ
                 </p>
             </div>
 
@@ -84,17 +84,17 @@ export default function UserSettingsPage() {
                         <CardHeader>
                             <CardTitle className="flex items-center gap-2">
                                 <User className="h-5 w-5" />
-                                User Details
+                                รายละเอียดผู้ใช้
                             </CardTitle>
-                            <CardDescription>Your account information</CardDescription>
+                            <CardDescription>ข้อมูลบัญชีของคุณ</CardDescription>
                         </CardHeader>
                         <CardContent className="space-y-4">
                             <div>
-                                <label className="text-sm font-medium text-gray-500">User ID</label>
+                                <label className="text-sm font-medium text-gray-500">รหัสผู้ใช้ (User ID)</label>
                                 <p className="mt-1 text-sm">{user?.id}</p>
                             </div>
                             <div>
-                                <label className="text-sm font-medium text-gray-500">Email</label>
+                                <label className="text-sm font-medium text-gray-500">อีเมล (Email)</label>
                                 <p className="mt-1 text-sm">{user?.email}</p>
                             </div>
                         </CardContent>
@@ -104,15 +104,15 @@ export default function UserSettingsPage() {
                         <CardHeader>
                             <CardTitle className="flex items-center gap-2">
                                 <Key className="h-5 w-5" />
-                                Change Password
+                                เปลี่ยนรหัสผ่าน
                             </CardTitle>
-                            <CardDescription>Update your account password</CardDescription>
+                            <CardDescription>อัปเดตรหัสผ่านบัญชีของคุณ</CardDescription>
                         </CardHeader>
                         <CardContent>
                             <form onSubmit={handlePasswordChange} className="space-y-4">
                                 <div>
                                     <label htmlFor="new-password" className="block text-sm font-medium text-gray-700">
-                                        New Password
+                                        รหัสผ่านใหม่
                                     </label>
                                     <input
                                         type="password"
@@ -125,7 +125,7 @@ export default function UserSettingsPage() {
                                 </div>
                                 <div>
                                     <label htmlFor="confirm-password" className="block text-sm font-medium text-gray-700">
-                                        Confirm New Password
+                                        ยืนยันรหัสผ่านใหม่
                                     </label>
                                     <input
                                         type="password"
@@ -141,7 +141,7 @@ export default function UserSettingsPage() {
                                     disabled={loading}
                                     className="w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-primary-600 hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500 disabled:opacity-50"
                                 >
-                                    {loading ? 'Updating...' : 'Update Password'}
+                                    {loading ? 'กำลังอัปเดต...' : 'อัปเดตรหัสผ่าน'}
                                 </button>
                             </form>
                         </CardContent>
@@ -149,7 +149,7 @@ export default function UserSettingsPage() {
 
                     <MFASetup
                         onStatusChange={() => {
-                            setSuccess('Two-factor authentication settings updated successfully');
+                            setSuccess('อัปเดตการตั้งค่าการยืนยันตัวตนสำเร็จแล้ว');
                         }}
                     />
                 </div>

@@ -35,18 +35,18 @@ export default function AuthAwareButtons({ variant = 'primary' }) {
                 href="/app"
                 className="bg-primary-600 text-white px-4 py-2 rounded-lg hover:bg-primary-700 transition-colors"
             >
-                Go to Dashboard
+                แดชบอร์ด
             </Link>
         ) : (
             <>
                 <Link href="/auth/login" className="text-gray-600 hover:text-gray-900">
-                    Login
+                    เข้าสู่ระบบ
                 </Link>
                 <Link
                     href="/auth/register"
                     className="bg-primary-600 text-white px-4 py-2 rounded-lg hover:bg-primary-700 transition-colors"
                 >
-                    Get Started
+                    เริ่มต้นใช้งาน
                 </Link>
             </>
         );
@@ -58,7 +58,7 @@ export default function AuthAwareButtons({ variant = 'primary' }) {
             href="/app"
             className="inline-flex items-center px-6 py-3 rounded-lg bg-primary-600 text-white font-medium hover:bg-primary-700 transition-colors"
         >
-            Go to Dashboard
+            ไปที่แดชบอร์ด
             <ArrowRight className="ml-2 h-5 w-5" />
         </Link>
     ) : (
@@ -67,14 +67,14 @@ export default function AuthAwareButtons({ variant = 'primary' }) {
                 href="/auth/register"
                 className="inline-flex items-center px-6 py-3 rounded-lg bg-primary-600 text-white font-medium hover:bg-primary-700 transition-colors"
             >
-                Start Building Free
+                เริ่มต้นใช้งานฟรี
                 <ArrowRight className="ml-2 h-5 w-5" />
             </Link>
             <Link
                 href="#features"
                 className="inline-flex items-center px-6 py-3 rounded-lg border border-gray-300 text-gray-700 font-medium hover:bg-gray-50 transition-colors"
             >
-                Learn More
+                ดูข้อมูลเพิ่มเติม
                 <ChevronRight className="ml-2 h-5 w-5" />
             </Link>
         </>

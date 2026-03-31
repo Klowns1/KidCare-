@@ -1,10 +1,8 @@
 "use client";
 import React, { useState, useEffect } from 'react';
-import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
-import { Users, Baby, Save, Loader2, CheckCircle, AlertCircle } from 'lucide-react';
+import { Users, Baby, Save, Loader2, CheckCircle, AlertCircle, Heart } from 'lucide-react';
 import { useGlobal } from '@/lib/context/GlobalContext';
 import { createSPASassClientAuthenticated as createSPASassClient } from '@/lib/supabase/client';
-import { Alert, AlertDescription } from '@/components/ui/alert';
 
 export default function ProfilePage() {
     const { user } = useGlobal();
@@ -133,14 +131,14 @@ export default function ProfilePage() {
 
             if (upsertError) {
                 console.error("Supabase Save Parent Error:", JSON.stringify(upsertError));
-                throw new Error(upsertError.message || "Failed to save parent");
+                throw new Error("Failed to save parent");
             }
 
-            setSuccess('บันทึกข้อมูลผู้ปกครองเรียบร้อยแล้ว');
+            setSuccess('บันทึกข้อมูลผู้ปกครองเรียบร้อยแล้ว ✅');
             setTimeout(() => setSuccess(''), 3000);
         } catch (err: unknown) {
             console.error(err);
-            setError(err instanceof Error ? err.message : 'เกิดข้อผิดพลาดในการบันทึกข้อมูล');
+            setError('เกิดข้อผิดพลาดในการบันทึกข้อมูล');
         } finally {
             setSaving(false);
         }
@@ -164,7 +162,7 @@ export default function ProfilePage() {
                 .maybeSingle();
 
             if (parentFetchError || !parentRow) {
-                throw new Error("กรุณาบันทึก 'ข้อมูลผู้ปกครอง' ก่อนทำการบันทึกข้อมูลเด็กครับ");
+                throw new Error("กรุณาบันทึก 'ข้อมูลผู้ปกครอง' ก่อนทำการบันทึกข้อมูลเด็กคะ/ครับ");
             }
 
             const childPayload = {
@@ -197,16 +195,16 @@ export default function ProfilePage() {
             if (upsertError) {
                 console.error("Supabase Save Child Error:", JSON.stringify(upsertError));
                 if (upsertError.code === '23503') {
-                    throw new Error("กรุณาบันทึก 'ข้อมูลผู้ปกครอง' ก่อนทำการบันทึกข้อมูลเด็กครับ (Foreign Key Constraint)");
+                    throw new Error("กรุณาบันทึก 'ข้อมูลผู้ปกครอง' ก่อนทำการบันทึกข้อมูลเด็กคะ/ครับ");
                 }
-                throw new Error(upsertError.message || "Failed to save child");
+                throw new Error("Failed to save child");
             }
             
             if (data && data.id) {
                 setChild({ ...child, id: data.id });
             }
 
-            setSuccess('บันทึกข้อมูลเด็กเรียบร้อยแล้ว');
+            setSuccess('บันทึกข้อมูลลูกน้อยเรียบร้อยแล้ว 👶');
             setTimeout(() => setSuccess(''), 3000);
         } catch (err: unknown) {
             console.error(err);
@@ -216,215 +214,238 @@ export default function ProfilePage() {
         }
     };
 
-    const inputClass = "w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500 outline-none transition-all disabled:bg-gray-100 disabled:opacity-70";
-    const selectClass = inputClass;
-    const labelClass = "block text-sm font-medium text-gray-700 mb-1";
-
     if (loading) {
         return (
-            <div className="flex h-[50vh] items-center justify-center">
-                <Loader2 className="h-8 w-8 animate-spin text-primary-600" />
+            <div className="flex flex-col h-[50vh] items-center justify-center">
+                <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-green-600 mb-3" />
+                <span className="text-gray-500 font-medium">กำลังโหลดโปรไฟล์...</span>
             </div>
         );
     }
 
-    return (
-        <div className="space-y-6 p-6">
-            <h1 className="text-2xl font-bold text-gray-900">โปรไฟล์ผู้ปกครองและเด็ก</h1>
+    // New large input styles
+    const inputClass = "block w-full rounded-2xl border border-gray-200 bg-gray-50 px-4 py-4 text-base shadow-sm focus:border-green-500 focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:bg-white transition-all";
+    const labelClass = "block text-sm font-bold text-gray-700 mb-2";
 
+    return (
+        <div className="max-w-2xl mx-auto p-4 sm:p-6 space-y-6">
+            
+            {/* Header */}
+            <div className="text-center mb-6">
+                <div className="inline-flex items-center justify-center p-3 bg-green-100 rounded-full mb-3 text-2xl">
+                    ครอบครัว
+                </div>
+                <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">โปรไฟล์ครอบครัว</h1>
+                <p className="text-gray-500 text-sm mt-1">อัปเดตข้อมูลของคุณและลูกน้อย</p>
+            </div>
+
+            {/* Notifications */}
             {error && (
-                <Alert variant="destructive">
-                    <AlertCircle className="h-4 w-4" />
-                    <AlertDescription>{error}</AlertDescription>
-                </Alert>
+                <div className="p-4 text-sm text-red-700 bg-red-50 rounded-2xl border border-red-100 flex items-start gap-2">
+                    <span className="text-lg">⚠️</span>
+                    <span>{error}</span>
+                </div>
             )}
 
             {success && (
-                <Alert className="border-green-200 bg-green-50 text-green-800">
-                    <CheckCircle className="h-4 w-4 text-green-600" />
-                    <AlertDescription>{success}</AlertDescription>
-                </Alert>
+                <div className="p-4 text-sm text-green-800 bg-green-50 rounded-2xl border border-green-200 flex items-start gap-2">
+                    <span className="text-lg">✅</span>
+                    <span>{success}</span>
+                </div>
             )}
 
-            {/* Tab Switcher */}
-            <div className="flex gap-2">
-                <button onClick={() => setActiveTab('parent')}
-                    className={`flex items-center gap-2 px-5 py-2.5 rounded-lg font-medium transition-all ${activeTab === 'parent' ? 'bg-primary-600 text-white shadow-md' : 'bg-white text-gray-600 border hover:bg-gray-50'}`}>
-                    <Users className="h-4 w-4" /> ข้อมูลผู้ปกครอง
+            {/* Big Friendly Tabs */}
+            <div className="flex bg-gray-100 p-1 rounded-2xl">
+                <button 
+                    onClick={() => setActiveTab('parent')}
+                    className={`flex-1 flex justify-center items-center gap-2 py-3 rounded-xl font-bold transition-all ${
+                        activeTab === 'parent' 
+                        ? 'bg-white shadow-sm text-green-700' 
+                        : 'text-gray-500 hover:text-gray-700'
+                    }`}
+                >
+                    <span className="text-xl">👩‍👦</span> ข้อมูลผู้ปกครอง
                 </button>
-                <button onClick={() => setActiveTab('child')}
-                    className={`flex items-center gap-2 px-5 py-2.5 rounded-lg font-medium transition-all ${activeTab === 'child' ? 'bg-primary-600 text-white shadow-md' : 'bg-white text-gray-600 border hover:bg-gray-50'}`}>
-                    <Baby className="h-4 w-4" /> ข้อมูลเด็ก
+                <button 
+                    onClick={() => setActiveTab('child')}
+                    className={`flex-1 flex justify-center items-center gap-2 py-3 rounded-xl font-bold transition-all ${
+                        activeTab === 'child' 
+                        ? 'bg-white shadow-sm text-green-700' 
+                        : 'text-gray-500 hover:text-gray-700'
+                    }`}
+                >
+                    <span className="text-xl">👶</span> ข้อมูลลูกน้อย
                 </button>
             </div>
 
-            {/* Parent Form */}
+            {/* Parent Form Content */}
             {activeTab === 'parent' && (
-                <Card>
-                    <CardHeader>
-                        <CardTitle className="flex items-center gap-2"><Users className="h-5 w-5 text-primary-600" /> ข้อมูลผู้ปกครอง / ผู้ดูแลเด็ก</CardTitle>
-                    </CardHeader>
-                    <CardContent>
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                            <div>
-                                <label className={labelClass}>เพศ</label>
-                                <select name="gender" value={parent.gender} onChange={handleParentChange} className={selectClass}>
-                                    <option value="">-- เลือก --</option>
-                                    <option value="male">ชาย</option>
-                                    <option value="female">หญิง</option>
-                                    <option value="other">อื่นๆ</option>
-                                </select>
-                            </div>
-                            <div>
-                                <label className={labelClass}>อายุ (ปี)</label>
-                                <input type="number" name="age" value={parent.age} onChange={handleParentChange} className={inputClass} placeholder="เช่น 35" />
-                            </div>
-                            <div>
-                                <label className={labelClass}>ระดับการศึกษา</label>
-                                <select name="education_level" value={parent.education_level} onChange={handleParentChange} className={selectClass}>
-                                    <option value="">-- เลือก --</option>
-                                    <option value="primary">ประถมศึกษา</option>
-                                    <option value="secondary">มัธยมศึกษา</option>
-                                    <option value="vocational">อาชีวศึกษา</option>
-                                    <option value="bachelor">ปริญญาตรี</option>
-                                    <option value="master">ปริญญาโท</option>
-                                    <option value="doctorate">ปริญญาเอก</option>
-                                    <option value="other">อื่น ๆ</option>
-                                </select>
-                            </div>
-                            <div>
-                                <label className={labelClass}>อาชีพ</label>
-                                <input type="text" name="occupation" value={parent.occupation} onChange={handleParentChange} className={inputClass} placeholder="เช่น รับจ้างทั่วไป" />
-                            </div>
-                            <div>
-                                <label className={labelClass}>รายได้ครอบครัว (บาท/เดือน)</label>
-                                <select name="family_income" value={parent.family_income} onChange={handleParentChange} className={selectClass}>
-                                    <option value="">-- เลือก --</option>
-                                    <option value="below_10000">ต่ำกว่า 10,000</option>
-                                    <option value="10000_20000">10,000 - 20,000</option>
-                                    <option value="20000_30000">20,000 - 30,000</option>
-                                    <option value="above_30000">มากกว่า 30,000</option>
-                                </select>
-                            </div>
-                            <div>
-                                <label className={labelClass}>สถานภาพสมรส</label>
-                                <select name="marital_status" value={parent.marital_status} onChange={handleParentChange} className={selectClass}>
-                                    <option value="">-- เลือก --</option>
-                                    <option value="single">โสด</option>
-                                    <option value="married">สมรส</option>
-                                    <option value="divorced">หย่าร้าง</option>
-                                    <option value="widowed">หม้าย</option>
-                                </select>
-                            </div>
-                            <div>
-                                <label className={labelClass}>ลักษณะครอบครัว</label>
-                                <select name="family_type" value={parent.family_type} onChange={handleParentChange} className={selectClass}>
-                                    <option value="">-- เลือก --</option>
-                                    <option value="nuclear">ครอบครัวเดี่ยว</option>
-                                    <option value="extended">ครอบครัวขยาย</option>
-                                    <option value="other">อื่นๆ</option>
-                                </select>
-                            </div>
-                            <div>
-                                <label className={labelClass}>ความสัมพันธ์กับเด็ก</label>
-                                <select name="relationship_to_child" value={parent.relationship_to_child} onChange={handleParentChange} className={selectClass}>
-                                    <option value="">-- เลือก --</option>
-                                    <option value="father">พ่อ</option>
-                                    <option value="mother">แม่</option>
-                                    <option value="grandfather">ปู่ / ตา</option>
-                                    <option value="grandmother">ย่า / ยาย</option>
-                                    <option value="other">อื่น ๆ</option>
-                                </select>
-                            </div>
+                <div className="bg-white rounded-3xl shadow-sm border border-gray-100 p-5 sm:p-8 space-y-6 animate-fade-in">
+                    
+                    <div>
+                        <label className={labelClass}>ความสัมพันธ์กับเด็ก</label>
+                        <select name="relationship_to_child" value={parent.relationship_to_child} onChange={handleParentChange} className={inputClass}>
+                            <option value="">-- เลือก --</option>
+                            <option value="mother">แม่</option>
+                            <option value="father">พ่อ</option>
+                            <option value="grandmother">ย่า / ยาย</option>
+                            <option value="grandfather">ปู่ / ตา</option>
+                            <option value="other">อื่น ๆ</option>
+                        </select>
+                    </div>
+
+                    <div>
+                        <label className={labelClass}>เพศ</label>
+                        <div className="grid grid-cols-2 gap-3">
+                            {['female', 'male'].map((g) => (
+                                <label key={g} className={`flex items-center justify-center p-4 rounded-2xl border-2 cursor-pointer transition-all ${
+                                    parent.gender === g ? 'border-green-500 bg-green-50 text-green-700 font-bold' : 'border-gray-100 bg-gray-50 text-gray-600'
+                                }`}>
+                                    <input type="radio" name="gender" value={g} checked={parent.gender === g} onChange={handleParentChange} className="hidden" />
+                                    {g === 'female' ? 'หญิง 👩🏻' : 'ชาย 👨🏻'}
+                                </label>
+                            ))}
                         </div>
-                        <button 
-                            onClick={saveParent}
-                            disabled={saving}
-                            className="mt-6 flex items-center gap-2 px-6 py-2.5 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition-colors font-medium disabled:opacity-70 disabled:cursor-not-allowed">
-                            {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />} 
-                            บันทึกข้อมูลผู้ปกครอง
-                        </button>
-                    </CardContent>
-                </Card>
+                    </div>
+                    
+                    <div>
+                        <label className={labelClass}>อายุ (ปี)</label>
+                        <input type="number" name="age" value={parent.age} onChange={handleParentChange} className={inputClass} placeholder="เช่น 30" />
+                    </div>
+
+                    <div>
+                        <label className={labelClass}>ระดับการศึกษา <span className="text-gray-400 font-normal text-xs">(ไม่บังคับ)</span></label>
+                        <select name="education_level" value={parent.education_level} onChange={handleParentChange} className={inputClass}>
+                            <option value="">-- ข้ามได้ --</option>
+                            <option value="primary">ประถมศึกษา</option>
+                            <option value="secondary">มัธยมศึกษา</option>
+                            <option value="vocational">อาชีวศึกษา</option>
+                            <option value="bachelor">ปริญญาตรี</option>
+                            <option value="master">ปริญญาโท</option>
+                            <option value="doctorate">ปริญญาเอก</option>
+                            <option value="other">อื่น ๆ</option>
+                        </select>
+                    </div>
+
+                    <div>
+                        <label className={labelClass}>อาชีพ <span className="text-gray-400 font-normal text-xs">(ไม่บังคับ)</span></label>
+                        <input type="text" name="occupation" value={parent.occupation} onChange={handleParentChange} className={inputClass} placeholder="ตัวอย่าง: ค้าขาย, ข้าราชการ" />
+                    </div>
+
+                    <button 
+                        onClick={saveParent}
+                        disabled={saving}
+                        className="w-full mt-8 flex justify-center items-center gap-2 py-4 px-6 rounded-2xl bg-gradient-to-r from-green-600 to-emerald-600 text-white font-bold text-lg shadow-lg shadow-green-500/30 hover:shadow-green-500/50 active:scale-[0.98] transition-all"
+                    >
+                        {saving ? (
+                            <><Loader2 className="h-6 w-6 animate-spin" /> กำลังบันทึก...</>
+                        ) : (
+                            <>บันทึกข้อมูลผู้ปกครอง</>
+                        )}
+                    </button>
+                </div>
             )}
 
-            {/* Child Form */}
+            {/* Child Form Content */}
             {activeTab === 'child' && (
-                <Card>
-                    <CardHeader>
-                        <CardTitle className="flex items-center gap-2"><Baby className="h-5 w-5 text-primary-600" /> ข้อมูลเด็กวัยก่อนเรียน (2-5 ปี)</CardTitle>
-                    </CardHeader>
-                    <CardContent>
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                            <div>
-                                <label className={labelClass}>เพศเด็ก</label>
-                                <select name="gender" value={child.gender} onChange={handleChildChange} className={selectClass}>
-                                    <option value="">-- เลือก --</option>
-                                    <option value="male">ชาย</option>
-                                    <option value="female">หญิง</option>
-                                </select>
-                            </div>
-                            <div>
-                                <label className={labelClass}>วันเกิด</label>
-                                <input type="date" name="birth_date" value={child.birth_date} onChange={handleChildChange} className={inputClass} max={new Date().toISOString().split('T')[0]} />
-                            </div>
-                            <div>
-                                <label className={labelClass}>ลำดับบุตร</label>
-                                <input type="number" name="birth_order" value={child.birth_order} onChange={handleChildChange} className={inputClass} placeholder="เช่น 1" min="1" />
-                            </div>
-                            <div>
-                                <label className={labelClass}>น้ำหนัก (กก.)</label>
-                                <input type="number" step="0.1" name="weight" value={child.weight} onChange={handleChildChange} className={inputClass} placeholder="เช่น 15.5" min="0" />
-                            </div>
-                            <div>
-                                <label className={labelClass}>ส่วนสูง (ซม.)</label>
-                                <input type="number" step="0.1" name="height" value={child.height} onChange={handleChildChange} className={inputClass} placeholder="เช่น 100" min="0" />
-                            </div>
-                            <div>
-                                <label className={labelClass}>จำนวนฟันผุ (ซี่)</label>
-                                <input type="number" name="decayed_teeth" value={child.decayed_teeth} onChange={handleChildChange} className={inputClass} placeholder="0" min="0" />
-                            </div>
+                <div className="bg-white rounded-3xl shadow-sm border border-gray-100 p-5 sm:p-8 space-y-6 animate-fade-in">
+                    
+                    <div>
+                        <label className={labelClass}>เพศของลูก</label>
+                        <div className="grid grid-cols-2 gap-3">
+                            {['male', 'female'].map((g) => (
+                                <label key={g} className={`flex items-center justify-center p-4 rounded-2xl border-2 cursor-pointer transition-all ${
+                                    child.gender === g ? 'border-blue-500 bg-blue-50 text-blue-700 font-bold' : 'border-gray-100 bg-gray-50 text-gray-600'
+                                }`}>
+                                    <input type="radio" name="gender" value={g} checked={child.gender === g} onChange={handleChildChange} className="hidden" />
+                                    {g === 'male' ? 'เด็กชาย 👦🏻' : 'เด็กหญิง 👧🏻'}
+                                </label>
+                            ))}
                         </div>
+                    </div>
 
-                        {/* DSPM Section */}
-                        <h3 className="text-lg font-semibold mt-6 mb-3 text-gray-800 border-b pb-2">คะแนนการประเมินพัฒนาการ (DSPM)</h3>
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                        <label className={labelClass}>วันเกิดลูก (พ.ศ. / ค.ศ. ตามปฏิทิน)</label>
+                        <input type="date" name="birth_date" value={child.birth_date} onChange={handleChildChange} className={inputClass} max={new Date().toISOString().split('T')[0]} />
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-4">
+                        <div>
+                            <label className={labelClass}>น้ำหนัก (กก.)</label>
+                            <input type="number" step="0.1" name="weight" value={child.weight} onChange={handleChildChange} className={inputClass} placeholder="เช่น 12.5" />
+                        </div>
+                        <div>
+                            <label className={labelClass}>ส่วนสูง (ซม.)</label>
+                            <input type="number" step="0.1" name="height" value={child.height} onChange={handleChildChange} className={inputClass} placeholder="เช่น 90" />
+                        </div>
+                    </div>
+
+                    <div className="p-4 bg-orange-50 rounded-2xl border border-orange-100">
+                        <label className="block text-sm font-bold text-orange-800 mb-2">🦷 จำนวนฟันผุ (ซี่)</label>
+                        <input type="number" name="decayed_teeth" value={child.decayed_teeth} onChange={handleChildChange} className="block w-full rounded-xl border border-orange-200 bg-white px-4 py-3 text-base outline-none focus:border-orange-500" placeholder="0" min="0" />
+                    </div>
+
+                    {/* Quick DSPM Section */}
+                    <div className="mt-8 pt-6 border-t border-gray-100">
+                        <h3 className="text-xl font-bold mb-4 flex items-center gap-2">
+                            <span>⭐</span> ประเมินพัฒนาการ (DSPM) คร่าวๆ
+                        </h3>
+                        <div className="space-y-4">
                             {[
-                                { name: 'dspm_gross_motor', label: '1. เคลื่อนไหว (กล้ามเนื้อมัดใหญ่)' },
-                                { name: 'dspm_fine_motor', label: '2. กล้ามเนื้อมัดเล็ก / สติปัญญา' },
-                                { name: 'dspm_language_comprehension', label: '3. การเข้าใจภาษา' },
-                                { name: 'dspm_language_use', label: '4. การใช้ภาษา' },
-                                { name: 'dspm_self_help', label: '5. การช่วยเหลือตนเองและสังคม' },
+                                { name: 'dspm_gross_motor', emoji: '🏃', label: '1. เคลื่อนไหวร่างกาย' },
+                                { name: 'dspm_fine_motor', emoji: '🤏', label: '2. ใช้มือและตา' },
+                                { name: 'dspm_language_comprehension', emoji: '👂', label: '3. เข้าใจภาษาที่พูดด้วย' },
+                                { name: 'dspm_language_use', emoji: '🗣️', label: '4. ใช้ภาษาพูดสื่อสาร' },
+                                { name: 'dspm_self_help', emoji: '👕', label: '5. ช่วยเหลือตนเองและเข้าสังคม' },
                             ].map(field => (
-                                <div key={field.name}>
-                                    <label className={labelClass}>{field.label}</label>
-                                    <select name={field.name} value={(child as Record<string, string>)[field.name]} onChange={handleChildChange} className={selectClass}>
-                                        <option value="">-- เลือกผลประเมิน --</option>
-                                        <option value="normal">สมวัย (ปกติ)</option>
-                                        <option value="suspected">สงสัยล่าช้า</option>
-                                        <option value="delayed">ล่าช้า</option>
-                                    </select>
+                                <div key={field.name} className="bg-gray-50 p-4 rounded-2xl">
+                                    <label className="block text-sm font-bold text-gray-800 mb-2">{field.emoji} {field.label}</label>
+                                    <div className="grid grid-cols-2 gap-2">
+                                        <button type="button" 
+                                            onClick={() => setChild({...child, [field.name]: 'normal'})}
+                                            className={`py-3 rounded-xl border font-medium text-sm transition-all ${
+                                                (child as Record<string, string>)[field.name] === 'normal' ? 'bg-green-500 text-white border-green-600 shadow-sm' : 'bg-white text-gray-600 border-gray-200 hover:bg-gray-100'
+                                            }`}
+                                        >
+                                            ✅ ปกติสมวัย
+                                        </button>
+                                        <button type="button" 
+                                            onClick={() => setChild({...child, [field.name]: 'suspected'})}
+                                            className={`py-3 rounded-xl border font-medium text-sm transition-all ${
+                                                (child as Record<string, string>)[field.name] === 'suspected' ? 'bg-orange-500 text-white border-orange-600 shadow-sm' : 'bg-white text-gray-600 border-gray-200 hover:bg-gray-100'
+                                            }`}
+                                        >
+                                            ⚠️ น่าจะล่าช้า
+                                        </button>
+                                    </div>
                                 </div>
                             ))}
                         </div>
+                    </div>
 
-                        <div className="mt-4">
-                            <label className={labelClass}>ประวัติการพบทันตแพทย์ / การรับวัคซีนเพิ่มเติม</label>
-                            <textarea name="dentist_visit_history" value={child.dentist_visit_history} onChange={handleChildChange}
-                                className={inputClass + " h-20 resize-none"} placeholder="รายละเอียด..." />
-                        </div>
-
-                        <button 
-                            onClick={saveChild}
-                            disabled={saving}
-                            className="mt-6 flex items-center gap-2 px-6 py-2.5 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition-colors font-medium disabled:opacity-70 disabled:cursor-not-allowed">
-                            {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />} 
-                            บันทึกข้อมูลเด็ก
-                        </button>
-                    </CardContent>
-                </Card>
+                    <button 
+                        onClick={saveChild}
+                        disabled={saving}
+                        className="w-full mt-8 flex justify-center items-center gap-2 py-4 px-6 rounded-2xl bg-gradient-to-r from-blue-600 to-indigo-600 text-white font-bold text-lg shadow-lg shadow-blue-500/30 hover:shadow-blue-500/50 active:scale-[0.98] transition-all"
+                    >
+                        {saving ? (
+                            <><Loader2 className="h-6 w-6 animate-spin" /> กำลังบันทึก...</>
+                        ) : (
+                            <>บันทึกข้อมูลลูกน้อย</>
+                        )}
+                    </button>
+                </div>
             )}
+            
+            <style jsx>{`
+                @keyframes fadeIn {
+                    from { opacity: 0; transform: translateY(5px); }
+                    to { opacity: 1; transform: translateY(0); }
+                }
+                .animate-fade-in {
+                    animation: fadeIn 0.3s ease-out forwards;
+                }
+            `}</style>
         </div>
     );
 }
-

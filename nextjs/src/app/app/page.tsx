@@ -1,7 +1,7 @@
 "use client";
 import React from 'react';
 import { useGlobal } from '@/lib/context/GlobalContext';
-import { CalendarDays, ExternalLink, Baby, BookOpen, Bell, ArrowRight, ShieldCheck, TrendingUp, ChevronRight, Activity, ClipboardList, Phone, LineChart } from 'lucide-react';
+import { CalendarDays, Baby, Bell, ArrowRight, ShieldCheck, ChevronRight } from 'lucide-react';
 import Link from 'next/link';
 
 export default function DashboardContent() {

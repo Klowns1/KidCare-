@@ -243,7 +243,7 @@ export default function BehaviorPage() {
                     <AlertCircle className="h-6 w-6 flex-shrink-0 mt-0.5" />
                     <div>
                         <p className="font-bold text-base">ไม่พบข้อมูลลูกน้อย</p>
-                        <p className="text-sm mt-1 leading-relaxed">กรุณาไปที่เมนู <b>"โปรไฟล์"</b> เพื่อเพิ่มประวัติลูกน้อยก่อนเริ่มใช้งานหน้านี้คะ/ครับ</p>
+                        <p className="text-sm mt-1 leading-relaxed">กรุณาไปที่เมนู <b>&quot;โปรไฟล์&quot;</b> เพื่อเพิ่มประวัติลูกน้อยก่อนเริ่มใช้งานหน้านี้คะ/ครับ</p>
                     </div>
                 </div>
             )}

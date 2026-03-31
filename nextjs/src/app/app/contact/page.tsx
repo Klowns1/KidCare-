@@ -1,6 +1,6 @@
 "use client";
 import React from 'react';
-import { MessageCircle, Phone, Calendar, AlertTriangle, Headset, ArrowRight, HeartPulse } from 'lucide-react';
+import { AlertTriangle, Headset, ArrowRight, HeartPulse } from 'lucide-react';
 import Link from 'next/link';
 
 export default function ContactPage() {

@@ -9,7 +9,6 @@ import {
     LogOut,
     Key,
     Users, BookOpen, ClipboardList, LineChart, Activity, Bell, Phone,
-    MoreHorizontal,
     ChevronRight,
     Heart
 } from 'lucide-react';

@@ -3,6 +3,7 @@ import React, { useState, useEffect } from 'react';
 import { Activity, Save, Calendar, CheckCircle2, Circle, Loader2, AlertCircle } from 'lucide-react';
 import { useGlobal } from '@/lib/context/GlobalContext';
 import { createSPASassClientAuthenticated as createSPASassClient } from '@/lib/supabase/client';
+import Link from 'next/link';
 
 interface BehaviorEntry {
     date: string;
@@ -70,7 +71,7 @@ const sections = [
 ];
 
 export default function BehaviorPage() {
-    const { user } = useGlobal();
+    const { user, selectedChildId } = useGlobal();
     const [entry, setEntry] = useState<BehaviorEntry>(defaultEntry);
     const [logs, setLogs] = useState<BehaviorEntry[]>([]);
     const [saved, setSaved] = useState(false);
@@ -88,13 +89,28 @@ export default function BehaviorPage() {
                 const supabaseWrapper = await createSPASassClient();
                 const supabase = supabaseWrapper.getSupabaseClient();
                 
-                // Fetch first child
+                // Fetch parent profile id first
+                const { data: parentData } = await supabase
+                    .from('parent_profiles')
+                    .select('id')
+                    .eq('user_id', user!.id)
+                    .limit(1)
+                    .maybeSingle();
+                    
+                if (!parentData) {
+                    setLoading(false);
+                    return;
+                }
+                if (!selectedChildId) {
+                    setChildId(null);
+                    setLoading(false);
+                    return;
+                }
+
                 const { data: childData, error: childError } = await supabase
                     .from('children')
                     .select('id')
-                    .eq('parent_id', user!.id)
-                    .order('created_at', { ascending: true })
-                    .limit(1)
+                    .eq('id', selectedChildId)
                     .maybeSingle();
                 
                 if (childError) throw childError;
@@ -143,7 +159,7 @@ export default function BehaviorPage() {
         }
         
         loadData();
-    }, [user]);
+    }, [user, selectedChildId]);
 
     const toggleItem = (key: keyof BehaviorEntry) => {
         setEntry({ ...entry, [key]: !entry[key] });
@@ -242,8 +258,8 @@ export default function BehaviorPage() {
                 <div className="p-4 bg-orange-50 border border-orange-200 text-orange-800 rounded-2xl flex items-start gap-3 shadow-sm">
                     <AlertCircle className="h-6 w-6 flex-shrink-0 mt-0.5" />
                     <div>
-                        <p className="font-bold text-base">ไม่พบข้อมูลลูกน้อย</p>
-                        <p className="text-sm mt-1 leading-relaxed">กรุณาไปที่เมนู <b>&quot;โปรไฟล์&quot;</b> เพื่อเพิ่มประวัติลูกน้อยก่อนเริ่มใช้งานหน้านี้คะ/ครับ</p>
+                        <p className="font-bold text-base">ยังไม่ได้เลือกข้อมูลเด็ก</p>
+                        <p className="text-sm mt-1 leading-relaxed">กรุณาไปที่เมนู <Link href="/app/profile" className="font-bold underline text-orange-900 hover:text-orange-700">&quot;โปรไฟล์&quot;</Link> เพื่อเลือกหรือเพิ่มประวัติลูกน้อยก่อนเริ่มใช้งานหน้านี้คะ/ครับ</p>
                     </div>
                 </div>
             )}

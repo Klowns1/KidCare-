@@ -5,8 +5,11 @@ import { useGlobal } from '@/lib/context/GlobalContext';
 import { createSPASassClientAuthenticated as createSPASassClient } from '@/lib/supabase/client';
 
 export default function ProfilePage() {
-    const { user } = useGlobal();
+    const { user, selectedChildId, setSelectedChildId } = useGlobal();
     const [activeTab, setActiveTab] = useState<'parent' | 'child'>('parent');
+    
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const [childList, setChildList] = useState<any[]>([]);
 
     const [parent, setParent] = useState({
         gender: '', age: '', education_level: '', occupation: '',
@@ -38,7 +41,8 @@ export default function ProfilePage() {
                 const { data: parentData, error: parentError } = await supabase
                     .from('parent_profiles')
                     .select('*')
-                    .eq('id', user!.id)
+                    .eq('user_id', user!.id)
+                    .limit(1)
                     .maybeSingle();
 
                 if (parentError) throw parentError;
@@ -54,33 +58,23 @@ export default function ProfilePage() {
                         family_type: parentData.family_type || '',
                         relationship_to_child: parentData.relationship_to_child || ''
                     });
-                }
 
-                // Fetch child
-                const { data: childData, error: childError } = await supabase
-                    .from('children')
-                    .select('*')
-                    .eq('parent_id', user!.id)
-                    .maybeSingle();
+                    // Fetch children list to display
+                    const { data: childrenData, error: childrenError } = await supabase
+                        .from('children')
+                        .select('*')
+                        .eq('parent_id', parentData.id)
+                        .order('created_at', { ascending: false });
 
-                if (childError) throw childError;
+                    if (childrenError) throw childrenError;
 
-                if (childData) {
-                    setChild({
-                        id: childData.id,
-                        gender: childData.gender || '',
-                        birth_date: childData.birth_date || '',
-                        birth_order: childData.birth_order?.toString() || '',
-                        weight: childData.weight?.toString() || '',
-                        height: childData.height?.toString() || '',
-                        decayed_teeth: childData.decayed_teeth?.toString() || '',
-                        dentist_visit_history: childData.dentist_visit_history || '',
-                        dspm_gross_motor: childData.dspm_gross_motor || '',
-                        dspm_fine_motor: childData.dspm_fine_motor || '',
-                        dspm_language_comprehension: childData.dspm_language_comprehension || '',
-                        dspm_language_use: childData.dspm_language_use || '',
-                        dspm_self_help: childData.dspm_self_help || ''
-                    });
+                    if (childrenData) {
+                        setChildList(childrenData);
+                        // If no child is selected and we have children, select the first one automatically
+                        if (!selectedChildId && childrenData.length > 0) {
+                            setSelectedChildId(childrenData[0].id);
+                        }
+                    }
                 }
 
             } catch (err: unknown) {
@@ -92,6 +86,7 @@ export default function ProfilePage() {
         }
 
         loadProfile();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [user]);
 
     const handleParentChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
@@ -136,6 +131,7 @@ export default function ProfilePage() {
 
             setSuccess('บันทึกข้อมูลผู้ปกครองเรียบร้อยแล้ว ✅');
             setTimeout(() => setSuccess(''), 3000);
+            window.scrollTo({ top: 0, behavior: 'smooth' });
         } catch (err: unknown) {
             console.error(err);
             setError('เกิดข้อผิดพลาดในการบันทึกข้อมูล');
@@ -165,6 +161,7 @@ export default function ProfilePage() {
                 .from('parent_profiles')
                 .select('id')
                 .eq('user_id', user.id)
+                .limit(1)
                 .maybeSingle();
 
             let parentRow = parentData;
@@ -218,11 +215,22 @@ export default function ProfilePage() {
             }
             
             if (data && data.id) {
-                setChild({ ...child, id: data.id });
+                // Prepend to childList
+                setChildList([{ ...childPayload, id: data.id }, ...childList]);
+                setSelectedChildId(data.id);
             }
+            
+            // Clear the form
+            setChild({
+                id: '', gender: '', birth_date: '', birth_order: '', weight: '', height: '',
+                decayed_teeth: '', dentist_visit_history: '',
+                dspm_gross_motor: '', dspm_fine_motor: '',
+                dspm_language_comprehension: '', dspm_language_use: '', dspm_self_help: ''
+            });
 
-            setSuccess('บันทึกข้อมูลลูกน้อยเรียบร้อยแล้ว');
+            setSuccess('บันทึกข้อมูลลูกน้อยเรียบร้อยแล้ว ✅');
             setTimeout(() => setSuccess(''), 3000);
+            window.scrollTo({ top: 0, behavior: 'smooth' });
         } catch (err: unknown) {
             console.error(err);
             setError(err instanceof Error ? err.message : 'เกิดข้อผิดพลาดในการบันทึกข้อมูล');
@@ -451,6 +459,45 @@ export default function ProfilePage() {
                             <>บันทึกข้อมูลลูกน้อย</>
                         )}
                     </button>
+                </div>
+            )}
+            
+            {/* Child List Section */}
+            {childList.length > 0 && (
+                <div className="bg-white rounded-3xl shadow-sm border border-gray-100 p-5 sm:p-8 space-y-4 animate-fade-in mt-6">
+                    <h2 className="text-xl font-bold text-gray-900 border-b pb-3 mb-4">รายชื่อเด็กที่ดึงข้อมูลไว้แล้ว</h2>
+                    <div className="space-y-3">
+                        {childList.map((c, idx) => {
+                            const isSelected = selectedChildId === c.id;
+                            return (
+                                <div key={c.id || idx} 
+                                    onClick={() => setSelectedChildId(c.id)}
+                                    className={`flex items-center justify-between p-4 rounded-2xl border-2 cursor-pointer transition-all ${
+                                        isSelected ? 'border-primary-500 bg-primary-50' : 'border-gray-100 hover:border-primary-200'
+                                    }`}>
+                                    <div className="flex items-center gap-4">
+                                        <div className={`p-3 rounded-full ${c.gender === 'male' ? 'bg-blue-100 text-blue-600' : 'bg-pink-100 text-pink-600'}`}>
+                                            <Baby className="w-6 h-6" />
+                                        </div>
+                                        <div>
+                                            <p className="font-bold text-gray-900">
+                                                {c.gender === 'male' ? 'เด็กชาย' : c.gender === 'female' ? 'เด็กหญิง' : 'ไม่ระบุเพศ'}
+                                            </p>
+                                            <p className="text-sm text-gray-500">
+                                                เกิด: {c.birth_date ? new Date(c.birth_date).toLocaleDateString('th-TH') : '-'}
+                                                {c.weight && ` | หนัก: ${c.weight} กก.`}
+                                            </p>
+                                        </div>
+                                    </div>
+                                    {isSelected && (
+                                        <div className="bg-primary-500 text-white px-3 py-1 rounded-full text-xs font-bold">
+                                            ดึงข้อมูลกำลังใช้งาน
+                                        </div>
+                                    )}
+                                </div>
+                            );
+                        })}
+                    </div>
                 </div>
             )}
             

@@ -14,14 +14,34 @@ type User = {
 
 interface GlobalContextType {
     loading: boolean;
-    user: User | null;  // Add this
+    user: User | null;
+    selectedChildId: string | null;
+    setSelectedChildId: (id: string | null) => void;
 }
 
 const GlobalContext = createContext<GlobalContextType | undefined>(undefined);
 
 export function GlobalProvider({ children }: { children: React.ReactNode }) {
     const [loading, setLoading] = useState(true);
-    const [user, setUser] = useState<User | null>(null);  // Add this
+    const [user, setUser] = useState<User | null>(null);
+    const [selectedChildId, _setSelectedChildId] = useState<string | null>(() => {
+        if (typeof window !== 'undefined') {
+            return localStorage.getItem('kidcare_selectedChildId');
+        }
+        return null;
+    });
+
+    // Wrapper to persist to localStorage
+    const setSelectedChildId = (id: string | null) => {
+        _setSelectedChildId(id);
+        if (typeof window !== 'undefined') {
+            if (id) {
+                localStorage.setItem('kidcare_selectedChildId', id);
+            } else {
+                localStorage.removeItem('kidcare_selectedChildId');
+            }
+        }
+    };
 
     useEffect(() => {
         async function loadData() {
@@ -30,7 +50,11 @@ export function GlobalProvider({ children }: { children: React.ReactNode }) {
                 const client = supabase.getSupabaseClient();
 
                 // Get user data
-                const { data: { user } } = await client.auth.getUser();
+                const { data: { user }, error } = await client.auth.getUser();
+                if (error) {
+                    console.warn('Auth user fetch warning:', error.message);
+                }
+                
                 if (user) {
                     setUser({
                         email: user.email ?? null,
@@ -39,7 +63,35 @@ export function GlobalProvider({ children }: { children: React.ReactNode }) {
                         is_anonymous: user.is_anonymous ?? false
                     });
                 } else {
-                    throw new Error('User not found');
+                    setUser(null);
+                }
+
+                // Auto-select first child if none selected yet
+                if (user && !selectedChildId) {
+                    try {
+                        const { data: parentData } = await client
+                            .from('parent_profiles')
+                            .select('id')
+                            .eq('user_id', user.id)
+                            .limit(1)
+                            .maybeSingle();
+
+                        if (parentData) {
+                            const { data: firstChild } = await client
+                                .from('children')
+                                .select('id')
+                                .eq('parent_id', parentData.id)
+                                .order('created_at', { ascending: false })
+                                .limit(1)
+                                .maybeSingle();
+
+                            if (firstChild) {
+                                setSelectedChildId(firstChild.id);
+                            }
+                        }
+                    } catch (e) {
+                        console.warn('Auto-select child failed:', e);
+                    }
                 }
 
             } catch (error) {
@@ -50,10 +102,11 @@ export function GlobalProvider({ children }: { children: React.ReactNode }) {
         }
 
         loadData();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
 
     return (
-        <GlobalContext.Provider value={{ loading, user }}>
+        <GlobalContext.Provider value={{ loading, user, selectedChildId, setSelectedChildId }}>
             {children}
         </GlobalContext.Provider>
     );

@@ -20,12 +20,24 @@ const faqs = [
     { q: 'ควรพาเด็กไปพบทันตแพทย์กี่เดือนครั้ง?', a: 'ทุก 6 เดือน หรือเมื่อพบรอยขาวขุ่นหรือสเตนบนฟัน ซึ่งเป็นสัญญาณแรกของฟันผุ' },
 ];
 
+const videoData = [
+    { id: 'v1', title: 'โภชนาการสำหรับเด็ก อายุ 2-5 ปี', url: 'Qp-Q2Mgof3I', category: 'โภชนาการ' },
+    { id: 'v2', title: 'สอนวิธีแปรงฟันเด็กที่ถูกต้อง 0-6 ปี เทคนิคแปรงฟันลูกยังไงให้สะอาด', url: 'DNPqHrAUuvs', category: 'สุขภาพฟัน' },
+    { id: 'v3', title: 'วิธีแปรงฟันเด็ก 3-6 ขวบ', url: '079HJOyoZYw', category: 'สุขภาพฟัน' },
+    { id: 'v4', title: 'ศูนย์สุขภาพเด็ก - การอ่านกราฟเกณฑ์การเจริญเติบโต', url: 'djEzxYe1gFM', category: 'โภชนาการ' },
+    { id: 'v5', title: 'ส่งเสริมพัฒนาการเด็กด้วยการเล่น', url: 'Panuclmz_8Y', category: 'พัฒนาการ' },
+    { id: 'v6', title: 'กิจกรรมเล่นสนุกเตรียมพร้อมพัฒนาการ', url: 'J506r0sGmzw', category: 'พัฒนาการ' },
+    { id: 'v7', title: 'กิจกรรมส่งเสริมพัฒนาการด้านภาษา สำหรับเด็กอายุ 2 - 5 ปี', url: 'ifa0TEzvVXk', category: 'พัฒนาการ' },
+    { id: 'v8', title: 'กิจกรรมส่งเสริมพัฒนาการด้านสติปัญญา สำหรับเด็กอายุ 2 - 5 ปี', url: 'E7KoBACgBJA', category: 'พัฒนาการ' }
+];
+
 export default function KnowledgePage() {
     const [searchTerm, setSearchTerm] = useState('');
     const [activeCategory, setActiveCategory] = useState<string>('ทั้งหมด');
     
     // For reading full article
     const [selectedArticle, setSelectedArticle] = useState<Article | null>(null);
+    const [selectedVideo, setSelectedVideo] = useState<string | null>(null);
 
     // FAQ state
     const [openFaq, setOpenFaq] = useState<number | null>(null);
@@ -71,6 +83,12 @@ export default function KnowledgePage() {
         const matchesCategory = activeCategory === 'ทั้งหมด' || (a.category || 'ทั่วไป') === activeCategory;
         const matchesSearch = a.title.toLowerCase().includes(searchTerm.toLowerCase()) || 
                               a.content.toLowerCase().includes(searchTerm.toLowerCase());
+        return matchesCategory && matchesSearch;
+    });
+
+    const filteredVideos = videoData.filter(v => {
+        const matchesCategory = activeCategory === 'ทั้งหมด' || v.category === activeCategory;
+        const matchesSearch = v.title.toLowerCase().includes(searchTerm.toLowerCase());
         return matchesCategory && matchesSearch;
     });
 
@@ -129,14 +147,58 @@ export default function KnowledgePage() {
                     <Loader2 className="h-10 w-10 animate-spin text-amber-500 mb-4" />
                     <p className="text-gray-500 font-medium">รอสักครู่ กำลังดึงข้อมูลดีๆ มาให้ค่ะ...</p>
                 </div>
-            ) : filteredArticles.length === 0 ? (
+            ) : filteredArticles.length === 0 && filteredVideos.length === 0 ? (
                 <div className="flex flex-col items-center justify-center py-16 px-4 text-center bg-gray-50 rounded-3xl border border-dashed border-gray-300">
                     <AlertCircle className="h-12 w-12 text-gray-300 mb-3" />
-                    <p className="text-gray-500 font-bold mb-1">ไม่พบบทความที่ค้นหา</p>
+                    <p className="text-gray-500 font-bold mb-1">ไม่พบข้อมูลที่ค้นหา</p>
                     <p className="text-sm text-gray-400">ลองเปลี่ยนคำค้นหาดูนะคะ</p>
                 </div>
             ) : (
-                <div className="space-y-5">
+                <div className="space-y-6">
+                    {/* Videos Section (Scrollable horizontally) */}
+                    {filteredVideos.length > 0 && (
+                        <div>
+                            <h3 className="text-xl font-bold flex items-center gap-2 mb-4 text-gray-900 px-2 mt-2">
+                                <PlayCircle className="text-red-500 h-6 w-6" /> คลิปแนะนำน่ารู้
+                            </h3>
+                            <div className="flex gap-4 overflow-x-auto pb-6 hide-scrollbar -mx-4 px-4 sm:mx-0 sm:px-0">
+                                {filteredVideos.map(video => (
+                                    <div 
+                                        key={video.id} 
+                                        onClick={() => setSelectedVideo(video.url)}
+                                        className="flex-shrink-0 w-64 sm:w-72 bg-white rounded-3xl overflow-hidden shadow-sm border border-gray-100 cursor-pointer hover:shadow-md transition-all group active:scale-[0.98]"
+                                    >
+                                        <div className="aspect-video relative bg-gray-100">
+                                            <Image 
+                                                src={`https://img.youtube.com/vi/${video.url}/hqdefault.jpg`} 
+                                                alt={video.title} 
+                                                fill 
+                                                className="object-cover group-hover:scale-105 transition-transform duration-500" 
+                                            />
+                                            <div className="absolute inset-0 bg-black/10 group-hover:bg-black/30 transition-colors flex items-center justify-center">
+                                                <div className="h-12 w-12 bg-white/90 backdrop-blur-sm rounded-full flex items-center justify-center shadow-lg transform group-hover:scale-110 transition-transform">
+                                                    <PlayCircle className="text-red-600 h-7 w-7" />
+                                                </div>
+                                            </div>
+                                            <div className="absolute top-3 left-3 bg-white/95 backdrop-blur-sm px-2.5 py-1 rounded-full text-[11px] font-bold text-red-600 shadow-sm border border-red-50">
+                                                {video.category}
+                                            </div>
+                                        </div>
+                                        <div className="p-4">
+                                            <h4 className="font-bold text-gray-900 text-sm line-clamp-2 leading-relaxed">{video.title}</h4>
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+                    )}
+                    
+                    {/* Articles List */}
+                    {filteredArticles.length > 0 && (
+                        <div className="space-y-5">
+                            <h3 className="text-xl font-bold flex items-center gap-2 mb-4 text-gray-900 px-2">
+                                <BookOpen className="text-amber-600 h-6 w-6" /> บทความน่าอ่าน
+                            </h3>
                     {filteredArticles.map(article => (
                         <div key={article.id} className="bg-white rounded-[2rem] overflow-hidden shadow-sm border border-gray-100 hover:shadow-lg transition-shadow">
                             
@@ -182,22 +244,10 @@ export default function KnowledgePage() {
                             </div>
                         </div>
                     ))}
+                        </div>
+                    )}
                 </div>
             )}
-
-            {/* Video Placeholder */}
-            <div className="bg-gradient-to-r from-red-50 to-orange-50 rounded-[2rem] p-6 border border-red-100 flex items-center gap-5 mt-10">
-                <div className="h-16 w-16 bg-white rounded-full flex items-center justify-center flex-shrink-0 shadow-sm relative">
-                    <PlayCircle className="h-8 w-8 text-red-500" />
-                    <div className="absolute -top-1 -right-1 bg-red-500 text-white text-[10px] font-bold px-2 py-0.5 rounded-full animate-pulse border-2 border-white">
-                        NEW
-                    </div>
-                </div>
-                <div>
-                    <h3 className="font-bold text-gray-900 text-lg sm:text-xl">วิดีโอสอนการเลี้ยงดู</h3>
-                    <p className="text-gray-600 text-sm sm:text-base mt-1">เร็วๆ นี้ จะมีวิดีโอเคล็ดลับเด็ดๆ มาให้ชมค่ะ</p>
-                </div>
-            </div>
 
             {/* FAQ Accordion */}
             <div className="mt-10 mb-8">
@@ -276,6 +326,33 @@ export default function KnowledgePage() {
                             >
                                 ปิดหน้าต่างนี้
                             </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* Video Modal */}
+            {selectedVideo && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/90 sm:bg-black/80 backdrop-blur-sm p-0 sm:p-6 animate-fade-in">
+                    <div className="w-full max-w-4xl flex flex-col relative animate-slide-up">
+                        <button 
+                            onClick={() => setSelectedVideo(null)}
+                            className="absolute -top-12 sm:-top-16 right-4 sm:right-0 h-10 w-10 sm:h-12 sm:w-12 bg-white/10 hover:bg-white/20 rounded-full text-white flex items-center justify-center transition-colors border border-white/20 z-10"
+                        >
+                            ✕
+                        </button>
+                        <div className="aspect-video w-full bg-black sm:rounded-3xl overflow-hidden shadow-2xl relative">
+                            <iframe 
+                                width="100%" 
+                                height="100%" 
+                                src={`https://www.youtube.com/embed/${selectedVideo}?autoplay=1`} 
+                                title="YouTube video player" 
+                                frameBorder="0" 
+                                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" 
+                                referrerPolicy="strict-origin-when-cross-origin" 
+                                allowFullScreen
+                                className="absolute inset-0 w-full h-full"
+                            ></iframe>
                         </div>
                     </div>
                 </div>

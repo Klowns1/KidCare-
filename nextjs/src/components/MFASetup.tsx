@@ -5,6 +5,7 @@ interface MFASetupProps {
 }
 
 /** MFA is disabled in local-auth mode. */
-export function MFASetup(_props: MFASetupProps) {
+export function MFASetup({ onStatusChange }: MFASetupProps) {
+    void onStatusChange;
     return null;
 }

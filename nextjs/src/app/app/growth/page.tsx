@@ -8,7 +8,7 @@ import {
     Tooltip, Legend, ResponsiveContainer 
 } from 'recharts';
 import { useGlobal } from '@/lib/context/GlobalContext';
-import { createSPASassClientAuthenticated as createSPASassClient } from '@/lib/supabase/client';
+import { getParentByUserId, listChildren, listHealthRecords } from '@/lib/local-db';
 import { growthStandards, Gender } from '@/lib/data/growth-standards';
 
 interface Child {
@@ -54,94 +54,89 @@ export default function GrowthPage() {
     useEffect(() => {
         if (!user) return;
 
-        async function loadData() {
-            setLoading(true);
-            try {
-                const supabaseWrapper = await createSPASassClient();
-                const supabase = supabaseWrapper.getSupabaseClient();
-
-                const { data: parentData } = await supabase
-                    .from('parent_profiles')
-                    .select('id')
-                    .eq('user_id', user!.id)
-                    .limit(1)
-                    .maybeSingle();
-
-                if (!parentData) { setHasChildren(false); setLoading(false); return; }
-
-                const { data: childrenData, error: childError } = await supabase
-                    .from('children')
-                    .select('id, gender, birth_date, weight, height')
-                    .eq('parent_id', parentData.id)
-                    .order('created_at', { ascending: true });
-
-                if (childError) throw childError;
-
-                if (!childrenData || childrenData.length === 0) { setHasChildren(false); setLoading(false); return; }
-
-                setHasChildren(true);
-                setChildrenInfo(childrenData as Child[]);
-                setSelectedChildId(childrenData[0].id);
-            } catch (err: unknown) {
-                console.error(err);
-                setError("เกิดข้อผิดพลาดในการโหลดข้อมูล");
-            } finally {
+        setLoading(true);
+        try {
+            const parentData = getParentByUserId(user.id);
+            if (!parentData) {
+                setHasChildren(false);
                 setLoading(false);
+                return;
             }
-        }
 
-        loadData();
+            const childrenData = listChildren(parentData.id)
+                .map((c) => ({
+                    id: c.id,
+                    gender: (c.gender || 'male') as Gender,
+                    birth_date: c.birth_date || '',
+                    weight: c.weight?.toString() || '',
+                    height: c.height?.toString() || '',
+                }))
+                .reverse();
+
+            if (childrenData.length === 0) {
+                setHasChildren(false);
+                setLoading(false);
+                return;
+            }
+
+            setHasChildren(true);
+            setChildrenInfo(childrenData);
+            setSelectedChildId(childrenData[0].id);
+        } catch (err: unknown) {
+            console.error(err);
+            setError('เกิดข้อผิดพลาดในการโหลดข้อมูล');
+        } finally {
+            setLoading(false);
+        }
     }, [user]);
 
     useEffect(() => {
         if (!selectedChildId || !user || childrenInfo.length === 0) return;
 
-        async function loadChildRecords() {
-            setChildLoading(true);
-            try {
-                const supabaseWrapper = await createSPASassClient();
-                const supabase = supabaseWrapper.getSupabaseClient();
+        setChildLoading(true);
+        try {
+            const selectedChild = childrenInfo.find((c) => c.id === selectedChildId);
+            if (!selectedChild) return;
 
-                const selectedChild = childrenInfo.find(c => c.id === selectedChildId);
-                if (!selectedChild) return;
+            const fromProfile =
+                selectedChild.birth_date && selectedChild.weight && selectedChild.height
+                    ? [
+                          {
+                              date: selectedChild.birth_date,
+                              weight: parseFloat(selectedChild.weight),
+                              height: parseFloat(selectedChild.height),
+                          },
+                      ]
+                    : [];
 
-                const { data: records, error: recError } = await supabase
-                    .from('health_records')
-                    .select('*')
-                    .eq('child_id', selectedChildId)
-                    .order('record_date', { ascending: true });
+            const fromRecords = listHealthRecords(selectedChildId).map((r) => ({
+                date: r.record_date,
+                weight: parseFloat(String(r.weight)),
+                height: parseFloat(String(r.height)),
+            }));
 
-                if (recError) throw recError;
+            const allRaw = [...fromProfile, ...fromRecords].sort((a, b) =>
+                a.date.localeCompare(b.date)
+            );
 
-                let allRaw: { date: string; weight: number; height: number }[] = [];
+            const birthDate = new Date(selectedChild.birth_date);
+            const recordsWithMonth: ChildRecord[] = allRaw.map((r) => {
+                const diffDays = Math.max(
+                    0,
+                    Math.round(
+                        (new Date(r.date).getTime() - birthDate.getTime()) / (1000 * 60 * 60 * 24)
+                    )
+                );
+                return { ...r, month: Math.round(diffDays / 30.4375) };
+            });
 
-                if (selectedChild.birth_date && selectedChild.weight && selectedChild.height) {
-                    allRaw.push({ date: selectedChild.birth_date, weight: parseFloat(selectedChild.weight), height: parseFloat(selectedChild.height) });
-                }
-
-                if (records) {
-                    records.forEach(r => allRaw.push({ date: r.record_date, weight: parseFloat(r.weight), height: parseFloat(r.height) }));
-                }
-
-                allRaw = allRaw.sort((a, b) => a.date.localeCompare(b.date));
-
-                const birthDate = new Date(selectedChild.birth_date);
-                const recordsWithMonth: ChildRecord[] = allRaw.map(r => {
-                    const rDate = new Date(r.date);
-                    const diffDays = Math.max(0, Math.round((rDate.getTime() - birthDate.getTime()) / (1000 * 60 * 60 * 24)));
-                    return { ...r, month: Math.round(diffDays / 30.4375) };
-                });
-
-                setChildRecords(recordsWithMonth);
-                setTableData(allRaw);
-            } catch(e) {
-                console.error(e);
-            } finally {
-                setChildLoading(false);
-            }
+            setChildRecords(recordsWithMonth);
+            setTableData(allRaw);
+        } catch (e) {
+            console.error(e);
+        } finally {
+            setChildLoading(false);
         }
-
-        loadChildRecords();
     }, [selectedChildId, childrenInfo, user]);
 
     const activeChild = childrenInfo.find(c => c.id === selectedChildId);

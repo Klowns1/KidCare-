@@ -1,34 +1,17 @@
-import {createBrowserClient} from '@supabase/ssr'
-import {ClientType, SassClient} from "@/lib/supabase/unified";
-import {Database} from "@/lib/types";
+/**
+ * Legacy Supabase client stubs.
+ * The KidCare app now uses local-auth / local-db. These exports remain only so
+ * leftover template pages do not break the build if imported accidentally.
+ */
 
-export function createSPAClient() {
-    return createBrowserClient<Database, "public">(
-        process.env.NEXT_PUBLIC_SUPABASE_URL!,
-        process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-    )
+export function createSPAClient(): never {
+    throw new Error('Supabase ถูกปิดใช้งานแล้ว กรุณาใช้ระบบล็อกอินในตัวแอป');
 }
 
-export async function createSPASassClient() {
-    const client = createSPAClient();
-    // This must be some bug that SupabaseClient is not properly recognized, so must be ignored
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    return new SassClient(client as any, ClientType.SPA);
+export async function createSPASassClient(): Promise<never> {
+    throw new Error('Supabase ถูกปิดใช้งานแล้ว กรุณาใช้ระบบล็อกอินในตัวแอป');
 }
 
-export async function createSPASassClientAuthenticated() {
-    const client = createSPAClient();
-    const user = await client.auth.getSession();
-    if (!user.data || !user.data.session) {
-        const { error } = await client.auth.signInAnonymously();
-        if (error) {
-            console.error("Anonymous login failed:", error);
-            alert("ระบบเกิดข้อผิดพลาด: ไม่สามารถใช้งานแบบไม่ระบุตัวตนได้ กรุณาไปเปิด 'Anonymous sign-ins' ในการตั้งค่า Supabase Dashboard (Authentication -> Providers -> Email)");
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
-            return new SassClient(client as any, ClientType.SPA);
-        }
-    }
-    // This must be some bug that SupabaseClient is not properly recognized, so must be ignored
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    return new SassClient(client as any, ClientType.SPA);
+export async function createSPASassClientAuthenticated(): Promise<never> {
+    throw new Error('Supabase ถูกปิดใช้งานแล้ว กรุณาใช้ระบบล็อกอินในตัวแอป');
 }

@@ -1,9 +1,10 @@
-// src/lib/context/GlobalContext.tsx
 'use client';
 
 import React, { createContext, useContext, useState, useEffect } from 'react';
-import { createSPASassClientAuthenticated as createSPASassClient } from '@/lib/supabase/client';
+import { getSessionUser, logoutUser, type LocalUser } from '@/lib/local-auth';
+import { getParentByUserId, listChildren } from '@/lib/local-db';
 
+const SELECTED_CHILD_KEY = 'kidcare_selectedChildId';
 
 type User = {
     email: string | null;
@@ -17,105 +18,89 @@ interface GlobalContextType {
     user: User | null;
     selectedChildId: string | null;
     setSelectedChildId: (id: string | null) => void;
+    refreshUser: () => void;
+    signOut: () => void;
 }
 
 const GlobalContext = createContext<GlobalContextType | undefined>(undefined);
 
+function toUser(session: LocalUser): User {
+    return {
+        email: session.email,
+        id: session.id,
+        registered_at: new Date(session.created_at),
+        is_anonymous: false,
+    };
+}
+
+function readSelectedChildId(): string | null {
+    if (typeof window === 'undefined') return null;
+    return localStorage.getItem(SELECTED_CHILD_KEY);
+}
+
+function persistSelectedChildId(id: string | null) {
+    if (typeof window === 'undefined') return;
+    if (id) localStorage.setItem(SELECTED_CHILD_KEY, id);
+    else localStorage.removeItem(SELECTED_CHILD_KEY);
+}
+
 export function GlobalProvider({ children }: { children: React.ReactNode }) {
     const [loading, setLoading] = useState(true);
     const [user, setUser] = useState<User | null>(null);
-    const [selectedChildId, _setSelectedChildId] = useState<string | null>(() => {
-        if (typeof window !== 'undefined') {
-            return localStorage.getItem('kidcare_selectedChildId');
-        }
-        return null;
-    });
+    const [selectedChildId, setSelectedChildIdState] = useState<string | null>(() =>
+        readSelectedChildId()
+    );
 
-    // Wrapper to persist to localStorage
-    const setSelectedChildId = (id: string | null) => {
-        _setSelectedChildId(id);
-        if (typeof window !== 'undefined') {
-            if (id) {
-                localStorage.setItem('kidcare_selectedChildId', id);
-            } else {
-                localStorage.removeItem('kidcare_selectedChildId');
-            }
+    function setSelectedChildId(id: string | null) {
+        setSelectedChildIdState(id);
+        persistSelectedChildId(id);
+    }
+
+    function refreshUser() {
+        const session = getSessionUser();
+        if (!session) {
+            setUser(null);
+            return;
         }
-    };
+
+        setUser(toUser(session));
+
+        if (selectedChildId) return;
+
+        const parent = getParentByUserId(session.id);
+        const firstChild = parent ? listChildren(parent.id)[0] : undefined;
+        if (firstChild) setSelectedChildId(firstChild.id);
+    }
+
+    function signOut() {
+        logoutUser();
+        setUser(null);
+        setSelectedChildId(null);
+        window.location.href = '/auth/login';
+    }
 
     useEffect(() => {
-        async function loadData() {
-            try {
-                const supabase = await createSPASassClient();
-                const client = supabase.getSupabaseClient();
-
-                // Get user data
-                const { data: { user }, error } = await client.auth.getUser();
-                if (error) {
-                    console.warn('Auth user fetch warning:', error.message);
-                }
-                
-                if (user) {
-                    setUser({
-                        email: user.email ?? null,
-                        id: user.id,
-                        registered_at: new Date(user.created_at),
-                        is_anonymous: user.is_anonymous ?? false
-                    });
-                } else {
-                    setUser(null);
-                }
-
-                // Auto-select first child if none selected yet
-                if (user && !selectedChildId) {
-                    try {
-                        const { data: parentData } = await client
-                            .from('parent_profiles')
-                            .select('id')
-                            .eq('user_id', user.id)
-                            .limit(1)
-                            .maybeSingle();
-
-                        if (parentData) {
-                            const { data: firstChild } = await client
-                                .from('children')
-                                .select('id')
-                                .eq('parent_id', parentData.id)
-                                .order('created_at', { ascending: false })
-                                .limit(1)
-                                .maybeSingle();
-
-                            if (firstChild) {
-                                setSelectedChildId(firstChild.id);
-                            }
-                        }
-                    } catch (e) {
-                        console.warn('Auto-select child failed:', e);
-                    }
-                }
-
-            } catch (error) {
-                console.error('Error loading data:', error);
-            } finally {
-                setLoading(false);
-            }
+        try {
+            refreshUser();
+        } finally {
+            setLoading(false);
         }
-
-        loadData();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
 
     return (
-        <GlobalContext.Provider value={{ loading, user, selectedChildId, setSelectedChildId }}>
+        <GlobalContext.Provider
+            value={{ loading, user, selectedChildId, setSelectedChildId, refreshUser, signOut }}
+        >
             {children}
         </GlobalContext.Provider>
     );
 }
 
-export const useGlobal = () => {
+export function useGlobal() {
     const context = useContext(GlobalContext);
     if (context === undefined) {
         throw new Error('useGlobal must be used within a GlobalProvider');
     }
     return context;
-};
+}

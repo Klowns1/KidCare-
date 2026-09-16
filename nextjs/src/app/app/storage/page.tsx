@@ -3,15 +3,35 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { useGlobal } from '@/lib/context/GlobalContext';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
+import {
+    AlertDialog,
+    AlertDialogAction,
+    AlertDialogCancel,
+    AlertDialogContent,
+    AlertDialogDescription,
+    AlertDialogFooter,
+    AlertDialogHeader,
+    AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import { Upload, Download, Share2, Trash2, Loader2, FileIcon, AlertCircle, CheckCircle, Copy } from 'lucide-react';
-import { createSPASassClientAuthenticated as createSPASassClient } from '@/lib/supabase/client';
-import { FileObject } from '@supabase/storage-js';
+import { Upload, Download, Share2, Trash2, Loader2, FileIcon, CheckCircle, Copy } from 'lucide-react';
+import { deleteFile, getFile, insertFile, listFiles, type StoredFile } from '@/lib/local-db';
+
+function readFileAsDataUrl(file: File): Promise<string> {
+    return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => {
+            if (typeof reader.result === 'string') resolve(reader.result);
+            else reject(new Error('อ่านไฟล์ไม่สำเร็จ'));
+        };
+        reader.onerror = () => reject(new Error('อ่านไฟล์ไม่สำเร็จ'));
+        reader.readAsDataURL(file);
+    });
+}
 
 export default function FileManagementPage() {
     const { user } = useGlobal();
-    const [files, setFiles] = useState<FileObject[]>([]);
+    const [files, setFiles] = useState<StoredFile[]>([]);
     const [uploading, setUploading] = useState(false);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState('');
@@ -23,52 +43,49 @@ export default function FileManagementPage() {
     const [showCopiedMessage, setShowCopiedMessage] = useState(false);
     const [isDragging, setIsDragging] = useState(false);
 
-    useEffect(() => {
-        if (user?.id) {
-            loadFiles();
-        }
-        // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [user]);
-
-    const loadFiles = async () => {
+    const loadFiles = useCallback(() => {
+        if (!user?.id) return;
+        setLoading(true);
+        setError('');
         try {
-            setLoading(true);
-            setError('');
-            const supabase = await createSPASassClient();
-            const { data, error } = await supabase.getFiles(user!.id);
-
-            if (error) throw error;
-            setFiles(data || []);
+            setFiles(listFiles(user.id));
         } catch (err) {
-            setError('Failed to load files');
-            console.error('Error loading files:', err);
+            setError('โหลดไฟล์ไม่สำเร็จ');
+            console.error(err);
         } finally {
             setLoading(false);
         }
-    };
+    }, [user]);
+
+    useEffect(() => {
+        if (user?.id) loadFiles();
+    }, [user, loadFiles]);
 
     const handleFileUpload = async (file: File) => {
+        if (!user?.id) return;
         try {
             setUploading(true);
             setError('');
-
-            console.log(user)
-
-            const supabase = await createSPASassClient();
-            const { error } = await supabase.uploadFile(user!.id!, file.name, file);
-
-            if (error) throw error;
-
-            await loadFiles();
-            setSuccess('File uploaded successfully');
+            if (file.size > 4 * 1024 * 1024) {
+                throw new Error('ไฟล์ต้องไม่เกิน 4MB');
+            }
+            const data_url = await readFileAsDataUrl(file);
+            insertFile({
+                user_id: user.id,
+                name: file.name,
+                size: file.size,
+                type: file.type || 'application/octet-stream',
+                data_url,
+            });
+            loadFiles();
+            setSuccess('อัปโหลดไฟล์สำเร็จ');
         } catch (err) {
-            setError('Failed to upload file');
-            console.error('Error uploading file:', err);
+            setError(err instanceof Error ? err.message : 'อัปโหลดไฟล์ไม่สำเร็จ');
+            console.error(err);
         } finally {
             setUploading(false);
         }
     };
-
 
     const handleInputChange = (event: React.ChangeEvent<HTMLInputElement>) => {
         const fileList = event.target.files;
@@ -77,256 +94,209 @@ export default function FileManagementPage() {
         event.target.value = '';
     };
 
-
-    const handleDrop = useCallback((e: React.DragEvent) => {
-        e.preventDefault();
-        e.stopPropagation();
-        setIsDragging(false);
-
-        const files = Array.from(e.dataTransfer.files);
-        if (files.length > 0) {
-            handleFileUpload(files[0]);
-        }
+    const handleDrop = useCallback(
+        (e: React.DragEvent) => {
+            e.preventDefault();
+            e.stopPropagation();
+            setIsDragging(false);
+            const dropped = Array.from(e.dataTransfer.files);
+            if (dropped.length > 0) handleFileUpload(dropped[0]);
+        },
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, []);
+        [user]
+    );
 
-
-    const handleDragEnter = useCallback((e: React.DragEvent) => {
-        e.preventDefault();
-        e.stopPropagation();
-        setIsDragging(true);
-    }, []);
-
-    const handleDragLeave = useCallback((e: React.DragEvent) => {
-        e.preventDefault();
-        e.stopPropagation();
-        setIsDragging(false);
-    }, []);
-
-    const handleDragOver = useCallback((e: React.DragEvent) => {
-        e.preventDefault();
-        e.stopPropagation();
-    }, []);
-
-
-    const handleDownload = async (filename: string) => {
-        try {
-            setError('');
-            const supabase = await createSPASassClient();
-            const { data, error } = await supabase.shareFile(user!.id!, filename, 60, true);
-
-            if (error) throw error;
-
-            window.open(data.signedUrl, '_blank');
-        } catch (err) {
-            setError('Failed to download file');
-            console.error('Error downloading file:', err);
+    const handleDownload = (filename: string) => {
+        if (!user?.id) return;
+        const file = getFile(user.id, filename);
+        if (!file) {
+            setError('ไม่พบไฟล์');
+            return;
         }
+        const a = document.createElement('a');
+        a.href = file.data_url;
+        a.download = file.name;
+        a.click();
     };
 
-    const handleShare = async (filename: string) => {
-        try {
-            setError('');
-            const supabase = await createSPASassClient();
-            const { data, error } = await supabase.shareFile(user!.id!, filename, 24 * 60 * 60);
-
-            if (error) throw error;
-
-            setShareUrl(data.signedUrl);
-            setSelectedFile(filename);
-        } catch (err) {
-            setError('Failed to generate share link');
-            console.error('Error sharing file:', err);
+    const handleShare = (filename: string) => {
+        if (!user?.id) return;
+        const file = getFile(user.id, filename);
+        if (!file) {
+            setError('ไม่พบไฟล์');
+            return;
         }
+        setShareUrl(file.data_url);
+        setSelectedFile(filename);
     };
 
-    const handleDelete = async () => {
-        if (!fileToDelete) return;
-
+    const handleDelete = () => {
+        if (!fileToDelete || !user?.id) return;
         try {
-            setError('');
-            const supabase = await createSPASassClient();
-            const { error } = await supabase.deleteFile(user!.id!, fileToDelete);
-
-            if (error) throw error;
-
-            await loadFiles();
-            setSuccess('File deleted successfully');
+            deleteFile(user.id, fileToDelete);
+            loadFiles();
+            setSuccess('ลบไฟล์สำเร็จ');
         } catch (err) {
-            setError('Failed to delete file');
-            console.error('Error deleting file:', err);
+            setError('ลบไฟล์ไม่สำเร็จ');
+            console.error(err);
         } finally {
             setShowDeleteDialog(false);
             setFileToDelete(null);
         }
     };
 
-    const copyToClipboard = async (text: string) => {
-        try {
-            await navigator.clipboard.writeText(text);
-            setShowCopiedMessage(true);
-            setTimeout(() => setShowCopiedMessage(false), 2000);
-        } catch (err) {
-            console.error('Failed to copy:', err);
-            setError('Failed to copy to clipboard');
-        }
-    };
-
-
     return (
         <div className="space-y-6 p-6">
+            <div>
+                <h1 className="text-2xl font-bold text-gray-900">จัดการไฟล์</h1>
+                <p className="text-sm text-gray-500 mt-1">เก็บรูปและเอกสารไว้ในเครื่องนี้</p>
+            </div>
+
+            {error && (
+                <Alert variant="destructive">
+                    <AlertDescription>{error}</AlertDescription>
+                </Alert>
+            )}
+            {success && (
+                <Alert>
+                    <CheckCircle className="h-4 w-4" />
+                    <AlertDescription>{success}</AlertDescription>
+                </Alert>
+            )}
+
+            <Card
+                onDragEnter={(e) => {
+                    e.preventDefault();
+                    setIsDragging(true);
+                }}
+                onDragLeave={(e) => {
+                    e.preventDefault();
+                    setIsDragging(false);
+                }}
+                onDragOver={(e) => e.preventDefault()}
+                onDrop={handleDrop}
+                className={isDragging ? 'border-primary-500 border-2 border-dashed' : ''}
+            >
+                <CardHeader>
+                    <CardTitle>อัปโหลดไฟล์</CardTitle>
+                    <CardDescription>ลากวาง หรือเลือกไฟล์ (ไม่เกิน 4MB)</CardDescription>
+                </CardHeader>
+                <CardContent>
+                    <label className="flex flex-col items-center justify-center gap-3 p-8 border-2 border-dashed rounded-xl cursor-pointer hover:bg-gray-50">
+                        {uploading ? (
+                            <Loader2 className="h-8 w-8 animate-spin text-primary-600" />
+                        ) : (
+                            <Upload className="h-8 w-8 text-gray-400" />
+                        )}
+                        <span className="text-sm text-gray-600">เลือกไฟล์</span>
+                        <input type="file" className="hidden" onChange={handleInputChange} />
+                    </label>
+                </CardContent>
+            </Card>
+
             <Card>
                 <CardHeader>
-                    <CardTitle>File Management</CardTitle>
-                    <CardDescription>Upload, download, and share your files</CardDescription>
+                    <CardTitle>ไฟล์ของฉัน</CardTitle>
                 </CardHeader>
-                <CardContent className="space-y-6">
-                    {error && (
-                        <Alert variant="destructive" className="mb-4">
-                            <AlertCircle className="h-4 w-4"/>
-                            <AlertDescription>{error}</AlertDescription>
-                        </Alert>
-                    )}
-
-                    {success && (
-                        <Alert className="mb-4">
-                            <CheckCircle className="h-4 w-4"/>
-                            <AlertDescription>{success}</AlertDescription>
-                        </Alert>
-                    )}
-
-                    <div className="flex items-center justify-center w-full">
-                        <label
-                            className={`w-full flex flex-col items-center px-4 py-6 bg-white rounded-lg shadow-lg tracking-wide border-2 cursor-pointer transition-colors ${
-                                isDragging
-                                    ? 'border-primary-500 border-dashed bg-primary-50'
-                                    : 'border-primary-600 hover:bg-primary-50'
-                            }`}
-                            onDragEnter={handleDragEnter}
-                            onDragOver={handleDragOver}
-                            onDragLeave={handleDragLeave}
-                            onDrop={handleDrop}
-                        >
-                            <Upload className="w-8 h-8"/>
-                            <span className="mt-2 text-base">
-                                {uploading
-                                    ? 'Uploading...'
-                                    : isDragging
-                                        ? 'Drop your file here'
-                                        : 'Drag and drop or click to select a file (max 50mb)'}
-                            </span>
-                            <input
-                                type="file"
-                                className="hidden"
-                                onChange={handleInputChange}
-                                disabled={uploading}
-                            />
-                        </label>
-                    </div>
-
-                    <div className="space-y-4">
-                        {loading && (
-                            <div className="flex items-center justify-center">
-                                <Loader2 className="w-6 h-6 animate-spin"/>
-                            </div>
-                        )}
-                        {files.length === 0 ? (
-                            <p className="text-center text-gray-500">No files uploaded yet</p>
-                        ) : (
-                            files.map((file) => (
+                <CardContent>
+                    {loading ? (
+                        <div className="flex justify-center py-8">
+                            <Loader2 className="h-6 w-6 animate-spin" />
+                        </div>
+                    ) : files.length === 0 ? (
+                        <p className="text-center text-gray-500 py-8">ยังไม่มีไฟล์</p>
+                    ) : (
+                        <div className="space-y-3">
+                            {files.map((file) => (
                                 <div
-                                    key={file.name}
-                                    className="flex items-center justify-between p-4 bg-white rounded-lg border"
+                                    key={file.id}
+                                    className="flex items-center justify-between gap-3 p-3 border rounded-xl"
                                 >
-                                    <div className="flex items-center space-x-3">
-                                        <FileIcon className="h-6 w-6 text-gray-400"/>
-                                        <span className="font-medium">{file.name.split('/').pop()}</span>
+                                    <div className="flex items-center gap-3 min-w-0">
+                                        <FileIcon className="h-5 w-5 text-gray-400 shrink-0" />
+                                        <div className="min-w-0">
+                                            <p className="font-medium truncate">{file.name}</p>
+                                            <p className="text-xs text-gray-400">
+                                                {(file.size / 1024).toFixed(1)} KB
+                                            </p>
+                                        </div>
                                     </div>
-                                    <div className="flex items-center space-x-2">
+                                    <div className="flex gap-1 shrink-0">
                                         <button
-                                            onClick={() => handleDownload(file.name)}
-                                            className="p-2 text-blue-600 hover:bg-blue-50 rounded-full transition-colors"
-                                            title="Download"
+                                            type="button"
+                                            onClick={() => handleDownload(file.id)}
+                                            className="p-2 rounded-lg hover:bg-gray-100"
+                                            title="ดาวน์โหลด"
                                         >
-                                            <Download className="h-5 w-5"/>
+                                            <Download className="h-4 w-4" />
                                         </button>
                                         <button
-                                            onClick={() => handleShare(file.name)}
-                                            className="p-2 text-green-600 hover:bg-green-50 rounded-full transition-colors"
-                                            title="Share"
+                                            type="button"
+                                            onClick={() => handleShare(file.id)}
+                                            className="p-2 rounded-lg hover:bg-gray-100"
+                                            title="แชร์"
                                         >
-                                            <Share2 className="h-5 w-5"/>
+                                            <Share2 className="h-4 w-4" />
                                         </button>
                                         <button
+                                            type="button"
                                             onClick={() => {
-                                                setFileToDelete(file.name);
+                                                setFileToDelete(file.id);
                                                 setShowDeleteDialog(true);
                                             }}
-                                            className="p-2 text-red-600 hover:bg-red-50 rounded-full transition-colors"
-                                            title="Delete"
+                                            className="p-2 rounded-lg hover:bg-red-50 text-red-600"
+                                            title="ลบ"
                                         >
-                                            <Trash2 className="h-5 w-5"/>
+                                            <Trash2 className="h-4 w-4" />
                                         </button>
                                     </div>
                                 </div>
-                            ))
-                        )}
-                    </div>
-
-                    {/* Share Dialog */}
-                    <Dialog open={Boolean(shareUrl)} onOpenChange={() => {
-                        setShareUrl('');
-                        setSelectedFile(null);
-                    }}>
-                        <DialogContent>
-                            <DialogHeader>
-                                <DialogTitle>Share {selectedFile?.split('/').pop()}</DialogTitle>
-                                <DialogDescription>
-                                    Copy the link below to share your file. This link will expire in 24 hours.
-                                </DialogDescription>
-                            </DialogHeader>
-                            <div className="flex items-center space-x-2">
-                                <input
-                                    type="text"
-                                    value={shareUrl}
-                                    readOnly
-                                    className="flex-1 p-2 border rounded bg-gray-50"
-                                />
-                                <button
-                                    onClick={() => copyToClipboard(shareUrl)}
-                                    className="p-2 text-primary-600 hover:bg-primary-50 rounded-full transition-colors relative"
-                                >
-                                    <Copy className="h-5 w-5"/>
-                                    {showCopiedMessage && (
-                                        <span
-                                            className="absolute -top-8 left-1/2 transform -translate-x-1/2 bg-black text-white text-xs px-2 py-1 rounded">
-                                            Copied!
-                                        </span>
-                                    )}
-                                </button>
-                            </div>
-                        </DialogContent>
-                    </Dialog>
-
-                    {/* Delete Confirmation Dialog */}
-                    <AlertDialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
-                        <AlertDialogContent>
-                            <AlertDialogHeader>
-                                <AlertDialogTitle>Delete File</AlertDialogTitle>
-                                <AlertDialogDescription>
-                                    Are you sure you want to delete this file? This action cannot be undone.
-                                </AlertDialogDescription>
-                            </AlertDialogHeader>
-                            <AlertDialogFooter>
-                                <AlertDialogCancel>Cancel</AlertDialogCancel>
-                                <AlertDialogAction onClick={handleDelete} className="bg-red-600 hover:bg-red-700">
-                                    Delete
-                                </AlertDialogAction>
-                            </AlertDialogFooter>
-                        </AlertDialogContent>
-                    </AlertDialog>
+                            ))}
+                        </div>
+                    )}
                 </CardContent>
             </Card>
+
+            <Dialog open={!!selectedFile} onOpenChange={() => setSelectedFile(null)}>
+                <DialogContent>
+                    <DialogHeader>
+                        <DialogTitle>ลิงก์ไฟล์</DialogTitle>
+                        <DialogDescription>คัดลอกลิงก์เพื่อเปิดดูไฟล์บนเครื่องนี้</DialogDescription>
+                    </DialogHeader>
+                    <div className="flex gap-2">
+                        <input
+                            readOnly
+                            value={shareUrl.slice(0, 80) + '...'}
+                            className="flex-1 border rounded-lg px-3 py-2 text-sm"
+                        />
+                        <button
+                            type="button"
+                            className="px-3 py-2 bg-primary-600 text-white rounded-lg"
+                            onClick={async () => {
+                                await navigator.clipboard.writeText(shareUrl);
+                                setShowCopiedMessage(true);
+                                setTimeout(() => setShowCopiedMessage(false), 1500);
+                            }}
+                        >
+                            <Copy className="h-4 w-4" />
+                        </button>
+                    </div>
+                    {showCopiedMessage && <p className="text-sm text-green-600">คัดลอกแล้ว</p>}
+                </DialogContent>
+            </Dialog>
+
+            <AlertDialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
+                <AlertDialogContent>
+                    <AlertDialogHeader>
+                        <AlertDialogTitle>ลบไฟล์นี้?</AlertDialogTitle>
+                        <AlertDialogDescription>การลบไม่สามารถกู้คืนได้</AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                        <AlertDialogCancel>ยกเลิก</AlertDialogCancel>
+                        <AlertDialogAction onClick={handleDelete}>ลบ</AlertDialogAction>
+                    </AlertDialogFooter>
+                </AlertDialogContent>
+            </AlertDialog>
         </div>
     );
 }

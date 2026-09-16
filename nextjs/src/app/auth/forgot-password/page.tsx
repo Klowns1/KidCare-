@@ -1,120 +1,72 @@
 'use client';
 
 import { useState } from 'react';
-import { createSPASassClient } from '@/lib/supabase/client';
 import Link from 'next/link';
-import { CheckCircle } from 'lucide-react';
+import { useRouter } from 'next/navigation';
+import { userExists } from '@/lib/local-auth';
 
 export default function ForgotPasswordPage() {
     const [email, setEmail] = useState('');
     const [error, setError] = useState('');
     const [loading, setLoading] = useState(false);
-    const [success, setSuccess] = useState(false);
+    const router = useRouter();
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         setError('');
         setLoading(true);
-
         try {
-            const supabase = await createSPASassClient();
-            const { error } = await supabase.getSupabaseClient().auth.resetPasswordForEmail(email, {
-                redirectTo: `${window.location.origin}/auth/reset-password`,
-            });
-
-            if (error) throw error;
-
-            setSuccess(true);
-        } catch (err) {
-            if (err instanceof Error) {
-                setError(err.message);
-            } else {
-                setError('An unknown error occurred');
+            if (!userExists(email)) {
+                throw new Error('ไม่พบอีเมลนี้ในระบบ กรุณาสมัครสมาชิกก่อน');
             }
+            router.push(`/auth/reset-password?email=${encodeURIComponent(email.trim().toLowerCase())}`);
+        } catch (err) {
+            setError(err instanceof Error ? err.message : 'เกิดข้อผิดพลาด');
         } finally {
             setLoading(false);
         }
     };
 
-    if (success) {
-        return (
-            <div className="bg-white py-8 px-4 shadow sm:rounded-lg sm:px-10">
-                <div className="text-center">
-                    <div className="flex justify-center mb-4">
-                        <CheckCircle className="h-16 w-16 text-green-500" />
-                    </div>
-
-                    <h2 className="text-2xl font-bold text-gray-900 mb-2">
-                        ตรวจสอบอีเมลของคุณ
-                    </h2>
-
-                    <p className="text-gray-600 mb-8">
-                        เราได้ส่งลิงก์สำหรับรีเซ็ตรหัสผ่านไปยังอีเมลของคุณแล้ว
-                        กรุณาตรวจสอบกล่องจดหมายและทำตามขั้นตอนเพื่อรีเซ็ตรหัสผ่าน
-                    </p>
-
-                    <div className="mt-6 text-center text-sm">
-                        <Link href="/auth/login" className="font-medium text-primary-600 hover:text-primary-500">
-                            กลับไปหน้าเข้าสู่ระบบ
-                        </Link>
-                    </div>
-                </div>
-            </div>
-        );
-    }
-
     return (
-        <div className="bg-white py-8 px-4 shadow sm:rounded-lg sm:px-10">
-            <div className="sm:mx-auto sm:w-full sm:max-w-md">
-                <h2 className="text-2xl font-bold text-center text-gray-900 mb-8">
-                    รีเซ็ตรหัสผ่าน
-                </h2>
-            </div>
+        <div className="bg-white rounded-2xl sm:rounded-3xl shadow-sm border border-gray-100 p-6 sm:p-8">
+            <h2 className="text-xl font-bold text-center text-gray-900 mb-2">ลืมรหัสผ่าน</h2>
+            <p className="text-sm text-gray-500 text-center mb-6">
+                กรอกอีเมลที่สมัครไว้ เพื่อตั้งรหัสผ่านใหม่
+            </p>
 
             {error && (
-                <div className="mb-4 p-4 text-sm text-red-700 bg-red-100 rounded-lg">
+                <div className="mb-4 p-4 text-sm text-red-700 bg-red-50 rounded-2xl border border-red-100">
                     {error}
                 </div>
             )}
 
-            <form onSubmit={handleSubmit} className="space-y-6">
+            <form onSubmit={handleSubmit} className="space-y-5">
                 <div>
-                    <label htmlFor="email" className="block text-sm font-medium text-gray-700">
-                        อีเมล (Email)
+                    <label htmlFor="email" className="block text-sm font-semibold text-gray-700 mb-2">
+                        อีเมล
                     </label>
-                    <div className="mt-1">
-                        <input
-                            id="email"
-                            name="email"
-                            type="email"
-                            autoComplete="email"
-                            required
-                            value={email}
-                            onChange={(e) => setEmail(e.target.value)}
-                            className="block w-full appearance-none rounded-md border border-gray-300 px-3 py-2 shadow-sm focus:border-primary-500 focus:outline-none focus:ring-primary-500"
-                        />
-                    </div>
-                    <p className="mt-2 text-sm text-gray-500">
-                        กรอกอีเมลของคุณและเราจะส่งลิงก์สำหรับเปลี่ยนรหัสผ่านไปให้
-                    </p>
+                    <input
+                        id="email"
+                        type="email"
+                        required
+                        value={email}
+                        onChange={(e) => setEmail(e.target.value)}
+                        className="block w-full rounded-2xl border border-gray-200 bg-gray-50 px-4 py-4 text-base focus:border-green-500 focus:outline-none focus:ring-2 focus:ring-green-500/20"
+                        placeholder="กรอกอีเมลของคุณ"
+                    />
                 </div>
-
-                <div>
-                    <button
-                        type="submit"
-                        disabled={loading}
-                        className="flex w-full justify-center rounded-md border border-transparent bg-primary-600 py-2 px-4 text-sm font-medium text-white shadow-sm hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2 disabled:opacity-50"
-                    >
-                        {loading ? 'กำลังส่งลิงก์...' : 'ส่งลิงก์สำหรับรีเซ็ตรหัสผ่าน'}
-                    </button>
-                </div>
+                <button
+                    type="submit"
+                    disabled={loading}
+                    className="flex w-full justify-center rounded-2xl bg-gradient-to-r from-green-600 to-emerald-600 py-4 text-base font-bold text-white disabled:opacity-50"
+                >
+                    {loading ? 'กำลังตรวจสอบ...' : 'ตั้งรหัสผ่านใหม่'}
+                </button>
             </form>
 
             <div className="mt-6 text-center text-sm">
-                <span className="text-gray-600">จำรหัสผ่านได้แล้วใช่ไหม?</span>
-                {' '}
-                <Link href="/auth/login" className="font-medium text-primary-600 hover:text-primary-500">
-                    เข้าสู่ระบบ
+                <Link href="/auth/login" className="font-bold text-green-600">
+                    กลับไปเข้าสู่ระบบ
                 </Link>
             </div>
         </div>

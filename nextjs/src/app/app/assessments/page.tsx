@@ -2,7 +2,7 @@
 import React, { useState, useEffect } from 'react';
 import { ClipboardList, CheckCircle2, Loader2, AlertCircle, ArrowRight, RefreshCcw, Star } from 'lucide-react';
 import { useGlobal } from '@/lib/context/GlobalContext';
-import { createSPASassClientAuthenticated as createSPASassClient } from '@/lib/supabase/client';
+import { getLatestAssessment, insertAssessment, type AssessmentResult } from '@/lib/local-db';
 
 const domains = [
     {
@@ -87,50 +87,32 @@ export default function AssessmentsPage() {
     const [loading, setLoading] = useState(true);
     const [saving, setSaving] = useState(false);
     const [error, setError] = useState('');
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const [pastResult, setPastResult] = useState<any>(null);
+    const [pastResult, setPastResult] = useState<AssessmentResult | null>(null);
 
     const totalQuestions = domains.reduce((sum, d) => sum + d.questions.length, 0);
     const maxScore = totalQuestions * 2;
 
     useEffect(() => {
         if (!user) return;
-        
-        async function checkPastTest() {
-            setLoading(true);
-            setPastResult(null);
-            setError('');
-            setActiveDomainIdx(0);
-            try {
-                const supabaseWrapper = await createSPASassClient();
-                const supabase = supabaseWrapper.getSupabaseClient();
-                
-                const { data, error: fetchError } = await supabase
-                    .from('assessment_results')
-                    .select('*')
-                    .eq('user_id', user!.id)
-                    .eq('test_type', testType)
-                    .order('created_at', { ascending: false })
-                    .limit(1)
-                    .maybeSingle();
-                    
-                if (fetchError) throw fetchError;
-                
-                if (data) {
-                    setPastResult(data);
-                    setSubmitted(true);
-                } else {
-                    setSubmitted(false);
-                }
-            } catch (err: unknown) {
-                console.error(err);
-                setError("เกิดข้อผิดพลาดในการโหลดข้อมูลแบบประเมิน");
-            } finally {
-                setLoading(false);
+
+        setLoading(true);
+        setPastResult(null);
+        setError('');
+        setActiveDomainIdx(0);
+        try {
+            const data = getLatestAssessment(user.id, testType);
+            if (data) {
+                setPastResult(data);
+                setSubmitted(true);
+            } else {
+                setSubmitted(false);
             }
+        } catch (err: unknown) {
+            console.error(err);
+            setError('เกิดข้อผิดพลาดในการโหลดข้อมูลแบบประเมิน');
+        } finally {
+            setLoading(false);
         }
-        
-        checkPastTest();
     }, [user, testType]);
 
     const handleAnswer = (domainId: string, qIdx: number, score: number) => {
@@ -164,43 +146,35 @@ export default function AssessmentsPage() {
 
     const handleSubmit = async () => {
         if (!user || !isAllAnswered) return;
-        
+
         setSaving(true);
         setError('');
-        
+
         try {
-            const supabaseWrapper = await createSPASassClient();
-            const supabase = supabaseWrapper.getSupabaseClient();
-            
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
-            const payload: any = {
+            const scoreFor = (domainId: string) =>
+                domains
+                    .find((d) => d.id === domainId)!
+                    .questions.reduce((acc, _, i) => acc + (answers[`${domainId}_${i}`] || 0), 0);
+
+            const data = insertAssessment({
                 user_id: user.id,
                 test_type: testType,
                 total_score: currentTotalScore,
                 literacy_level: result.level,
                 recommendations: result.rec,
-            };
-            
-            domains.forEach(d => {
-                let sum = 0;
-                d.questions.forEach((_, i) => { sum += answers[`${d.id}_${i}`] || 0; });
-                payload[`score_${d.id}`] = sum;
+                score_access_info: scoreFor('access_info'),
+                score_knowledge: scoreFor('knowledge'),
+                score_communication: scoreFor('communication'),
+                score_media_literacy: scoreFor('media_literacy'),
+                score_decision_making: scoreFor('decision_making'),
+                score_care_management: scoreFor('care_management'),
             });
-            
-            const { data, error: insertError } = await supabase
-                .from('assessment_results')
-                .insert([payload])
-                .select()
-                .maybeSingle();
-                
-            if (insertError) throw insertError;
-            
             setPastResult(data);
             setSubmitted(true);
             window.scrollTo({ top: 0, behavior: 'smooth' });
         } catch (err: unknown) {
             console.error(err);
-            setError("เกิดข้อผิดพลาดในการส่งแบบประเมิน");
+            setError('เกิดข้อผิดพลาดในการส่งแบบประเมิน');
         } finally {
             setSaving(false);
         }

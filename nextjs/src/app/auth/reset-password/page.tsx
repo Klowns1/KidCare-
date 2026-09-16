@@ -1,11 +1,22 @@
 'use client';
 
-import { useState, useEffect } from 'react';
-import { createSPASassClient } from '@/lib/supabase/client';
-import { useRouter } from 'next/navigation';
+import { Suspense, useState } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
+import Link from 'next/link';
 import { CheckCircle, Key } from 'lucide-react';
+import { resetPasswordByEmail } from '@/lib/local-auth';
 
 export default function ResetPasswordPage() {
+    return (
+        <Suspense fallback={<div className="p-8 text-center text-gray-500 text-sm">กำลังโหลด...</div>}>
+            <ResetPasswordForm />
+        </Suspense>
+    );
+}
+
+function ResetPasswordForm() {
+    const searchParams = useSearchParams();
+    const email = (searchParams.get('email') || '').trim().toLowerCase();
     const [newPassword, setNewPassword] = useState('');
     const [confirmPassword, setConfirmPassword] = useState('');
     const [error, setError] = useState('');
@@ -13,58 +24,30 @@ export default function ResetPasswordPage() {
     const [success, setSuccess] = useState(false);
     const router = useRouter();
 
-    // Check if we have a valid recovery session
-    useEffect(() => {
-        const checkSession = async () => {
-            try {
-                const supabase = await createSPASassClient();
-                const { data: { user }, error } = await supabase.getSupabaseClient().auth.getUser();
-
-                if (error || !user) {
-                    setError('Invalid or expired reset link. Please request a new password reset.');
-                }
-            } catch {
-                setError('Failed to verify reset session');
-            }
-        };
-
-        checkSession();
-    }, []);
-
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         setError('');
 
-        if (newPassword !== confirmPassword) {
-            setError("Passwords don't match");
+        if (!email) {
+            setError('ไม่พบอีเมลสำหรับรีเซ็ตรหัสผ่าน กรุณาเริ่มใหม่จากหน้าลืมรหัสผ่าน');
             return;
         }
-
+        if (newPassword !== confirmPassword) {
+            setError('รหัสผ่านไม่ตรงกัน');
+            return;
+        }
         if (newPassword.length < 6) {
-            setError('Password must be at least 6 characters long');
+            setError('รหัสผ่านต้องมีอย่างน้อย 6 ตัวอักษร');
             return;
         }
 
         setLoading(true);
-
         try {
-            const supabase = await createSPASassClient();
-            const { error } = await supabase.getSupabaseClient().auth.updateUser({
-                password: newPassword
-            });
-
-            if (error) throw error;
-
+            await resetPasswordByEmail(email, newPassword);
             setSuccess(true);
-            setTimeout(() => {
-                router.push('/app');
-            }, 3000);
+            setTimeout(() => router.push('/auth/login'), 2000);
         } catch (err) {
-            if (err instanceof Error) {
-                setError(err.message);
-            } else {
-                setError('Failed to reset password');
-            }
+            setError(err instanceof Error ? err.message : 'รีเซ็ตรหัสผ่านไม่สำเร็จ');
         } finally {
             setLoading(false);
         }
@@ -72,92 +55,63 @@ export default function ResetPasswordPage() {
 
     if (success) {
         return (
-            <div className="bg-white py-8 px-4 shadow sm:rounded-lg sm:px-10">
-                <div className="text-center">
-                    <div className="flex justify-center mb-4">
-                        <CheckCircle className="h-16 w-16 text-green-500" />
-                    </div>
-
-                    <h2 className="text-2xl font-bold text-gray-900 mb-2">
-                        Password reset successful
-                    </h2>
-
-                    <p className="text-gray-600 mb-8">
-                        Your password has been successfully reset.
-                        You will be redirected to the app in a moment.
-                    </p>
-                </div>
+            <div className="bg-white rounded-2xl sm:rounded-3xl shadow-sm border border-gray-100 p-6 sm:p-8 text-center">
+                <CheckCircle className="h-16 w-16 text-green-500 mx-auto mb-4" />
+                <h2 className="text-xl font-bold text-gray-900 mb-2">ตั้งรหัสผ่านใหม่สำเร็จ</h2>
+                <p className="text-gray-600">กำลังพาไปหน้าเข้าสู่ระบบ...</p>
             </div>
         );
     }
 
     return (
-        <div className="bg-white py-8 px-4 shadow sm:rounded-lg sm:px-10">
-            <div className="sm:mx-auto sm:w-full sm:max-w-md">
-                <div className="flex justify-center mb-4">
-                    <Key className="h-12 w-12 text-primary-600" />
-                </div>
-                <h2 className="text-2xl font-bold text-center text-gray-900 mb-8">
-                    Create new password
-                </h2>
+        <div className="bg-white rounded-2xl sm:rounded-3xl shadow-sm border border-gray-100 p-6 sm:p-8">
+            <div className="flex justify-center mb-4">
+                <Key className="h-10 w-10 text-green-600" />
             </div>
+            <h2 className="text-xl font-bold text-center text-gray-900 mb-2">ตั้งรหัสผ่านใหม่</h2>
+            {email && <p className="text-sm text-center text-gray-500 mb-6">{email}</p>}
 
             {error && (
-                <div className="mb-4 p-4 text-sm text-red-700 bg-red-100 rounded-lg">
+                <div className="mb-4 p-4 text-sm text-red-700 bg-red-50 rounded-2xl border border-red-100">
                     {error}
                 </div>
             )}
 
-            <form onSubmit={handleSubmit} className="space-y-6">
+            <form onSubmit={handleSubmit} className="space-y-5">
                 <div>
-                    <label htmlFor="new-password" className="block text-sm font-medium text-gray-700">
-                        New Password
-                    </label>
-                    <div className="mt-1">
-                        <input
-                            id="new-password"
-                            name="new-password"
-                            type="password"
-                            autoComplete="new-password"
-                            required
-                            value={newPassword}
-                            onChange={(e) => setNewPassword(e.target.value)}
-                            className="block w-full appearance-none rounded-md border border-gray-300 px-3 py-2 shadow-sm focus:border-primary-500 focus:outline-none focus:ring-primary-500"
-                        />
-                    </div>
+                    <label className="block text-sm font-semibold text-gray-700 mb-2">รหัสผ่านใหม่</label>
+                    <input
+                        type="password"
+                        required
+                        value={newPassword}
+                        onChange={(e) => setNewPassword(e.target.value)}
+                        className="block w-full rounded-2xl border border-gray-200 bg-gray-50 px-4 py-4 text-base focus:border-green-500 focus:outline-none focus:ring-2 focus:ring-green-500/20"
+                    />
                 </div>
-
                 <div>
-                    <label htmlFor="confirm-password" className="block text-sm font-medium text-gray-700">
-                        Confirm New Password
-                    </label>
-                    <div className="mt-1">
-                        <input
-                            id="confirm-password"
-                            name="confirm-password"
-                            type="password"
-                            autoComplete="new-password"
-                            required
-                            value={confirmPassword}
-                            onChange={(e) => setConfirmPassword(e.target.value)}
-                            className="block w-full appearance-none rounded-md border border-gray-300 px-3 py-2 shadow-sm focus:border-primary-500 focus:outline-none focus:ring-primary-500"
-                        />
-                    </div>
-                    <p className="mt-2 text-sm text-gray-500">
-                        Password must be at least 6 characters long
-                    </p>
+                    <label className="block text-sm font-semibold text-gray-700 mb-2">ยืนยันรหัสผ่านใหม่</label>
+                    <input
+                        type="password"
+                        required
+                        value={confirmPassword}
+                        onChange={(e) => setConfirmPassword(e.target.value)}
+                        className="block w-full rounded-2xl border border-gray-200 bg-gray-50 px-4 py-4 text-base focus:border-green-500 focus:outline-none focus:ring-2 focus:ring-green-500/20"
+                    />
                 </div>
-
-                <div>
-                    <button
-                        type="submit"
-                        disabled={loading}
-                        className="flex w-full justify-center rounded-md border border-transparent bg-primary-600 py-2 px-4 text-sm font-medium text-white shadow-sm hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2 disabled:opacity-50"
-                    >
-                        {loading ? 'Resetting password...' : 'Reset password'}
-                    </button>
-                </div>
+                <button
+                    type="submit"
+                    disabled={loading}
+                    className="flex w-full justify-center rounded-2xl bg-gradient-to-r from-green-600 to-emerald-600 py-4 text-base font-bold text-white disabled:opacity-50"
+                >
+                    {loading ? 'กำลังบันทึก...' : 'บันทึกรหัสผ่านใหม่'}
+                </button>
             </form>
+
+            <div className="mt-6 text-center text-sm">
+                <Link href="/auth/forgot-password" className="font-bold text-green-600">
+                    กลับไปหน้าลืมรหัสผ่าน
+                </Link>
+            </div>
         </div>
     );
 }

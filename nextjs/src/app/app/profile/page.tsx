@@ -2,26 +2,43 @@
 import React, { useState, useEffect } from 'react';
 import { Loader2, Users, Baby, AlertCircle, CheckCircle2 } from 'lucide-react';
 import { useGlobal } from '@/lib/context/GlobalContext';
-import { createSPASassClientAuthenticated as createSPASassClient } from '@/lib/supabase/client';
+import {
+    ensureParentProfile,
+    getParentByUserId,
+    insertChild,
+    listChildren,
+    updateChild,
+    upsertParentProfile,
+    type ChildRecord,
+} from '@/lib/local-db';
+
+const emptyChildForm = {
+    id: '',
+    gender: '',
+    birth_date: '',
+    birth_order: '',
+    weight: '',
+    height: '',
+    decayed_teeth: '',
+    dentist_visit_history: '',
+    dspm_gross_motor: '',
+    dspm_fine_motor: '',
+    dspm_language_comprehension: '',
+    dspm_language_use: '',
+    dspm_self_help: '',
+};
 
 export default function ProfilePage() {
     const { user, selectedChildId, setSelectedChildId } = useGlobal();
     const [activeTab, setActiveTab] = useState<'parent' | 'child'>('parent');
-    
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const [childList, setChildList] = useState<any[]>([]);
+    const [childList, setChildList] = useState<ChildRecord[]>([]);
 
     const [parent, setParent] = useState({
         gender: '', age: '', education_level: '', occupation: '',
         family_income: '', marital_status: '', family_type: '', relationship_to_child: ''
     });
 
-    const [child, setChild] = useState({
-        id: '', gender: '', birth_date: '', birth_order: '', weight: '', height: '',
-        decayed_teeth: '', dentist_visit_history: '',
-        dspm_gross_motor: '', dspm_fine_motor: '',
-        dspm_language_comprehension: '', dspm_language_use: '', dspm_self_help: ''
-    });
+    const [child, setChild] = useState(emptyChildForm);
 
     const [loading, setLoading] = useState(true);
     const [saving, setSaving] = useState(false);
@@ -30,63 +47,34 @@ export default function ProfilePage() {
 
     useEffect(() => {
         if (!user) return;
-        
-        async function loadProfile() {
+
+        try {
             setLoading(true);
-            try {
-                const supabaseWrapper = await createSPASassClient();
-                const supabase = supabaseWrapper.getSupabaseClient();
-
-                // Fetch parent
-                const { data: parentData, error: parentError } = await supabase
-                    .from('parent_profiles')
-                    .select('*')
-                    .eq('user_id', user!.id)
-                    .limit(1)
-                    .maybeSingle();
-
-                if (parentError) throw parentError;
-                
-                if (parentData) {
-                    setParent({
-                        gender: parentData.gender || '',
-                        age: parentData.age?.toString() || '',
-                        education_level: parentData.education_level || '',
-                        occupation: parentData.occupation || '',
-                        family_income: parentData.family_income || '',
-                        marital_status: parentData.marital_status || '',
-                        family_type: parentData.family_type || '',
-                        relationship_to_child: parentData.relationship_to_child || ''
-                    });
-
-                    // Fetch children list to display
-                    const { data: childrenData, error: childrenError } = await supabase
-                        .from('children')
-                        .select('*')
-                        .eq('parent_id', parentData.id)
-                        .order('created_at', { ascending: false });
-
-                    if (childrenError) throw childrenError;
-
-                    if (childrenData) {
-                        setChildList(childrenData);
-                        // If no child is selected and we have children, select the first one automatically
-                        if (!selectedChildId && childrenData.length > 0) {
-                            setSelectedChildId(childrenData[0].id);
-                        }
-                    }
+            const parentData = getParentByUserId(user.id);
+            if (parentData) {
+                setParent({
+                    gender: parentData.gender || '',
+                    age: parentData.age?.toString() || '',
+                    education_level: parentData.education_level || '',
+                    occupation: parentData.occupation || '',
+                    family_income: parentData.family_income || '',
+                    marital_status: parentData.marital_status || '',
+                    family_type: parentData.family_type || '',
+                    relationship_to_child: parentData.relationship_to_child || '',
+                });
+                const childrenData = listChildren(parentData.id);
+                setChildList(childrenData);
+                if (!selectedChildId && childrenData.length > 0) {
+                    setSelectedChildId(childrenData[0].id);
                 }
-
-            } catch (err: unknown) {
-                console.error("Error loading profile:", err);
-                setError("ไม่สามารถโหลดข้อมูลได้");
-            } finally {
-                setLoading(false);
             }
+        } catch (err: unknown) {
+            console.error('Error loading profile:', err);
+            setError('ไม่สามารถโหลดข้อมูลได้');
+        } finally {
+            setLoading(false);
         }
-
-        loadProfile();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [user]);
 
     const handleParentChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
@@ -104,11 +92,7 @@ export default function ProfilePage() {
         setSuccess('');
 
         try {
-            const supabaseWrapper = await createSPASassClient();
-            const supabase = supabaseWrapper.getSupabaseClient();
-
-            const parentPayload = {
-                user_id: user.id,
+            upsertParentProfile(user.id, {
                 gender: parent.gender || null,
                 age: parent.age ? parseInt(parent.age) : null,
                 education_level: parent.education_level || null,
@@ -117,18 +101,7 @@ export default function ProfilePage() {
                 marital_status: parent.marital_status || null,
                 family_type: parent.family_type || null,
                 relationship_to_child: parent.relationship_to_child || null,
-                updated_at: new Date().toISOString()
-            };
-
-            const { error: upsertError } = await supabase
-                .from('parent_profiles')
-                .upsert(parentPayload, { onConflict: 'user_id' });
-
-            if (upsertError) {
-                console.error("Supabase Save Parent Error:", JSON.stringify(upsertError));
-                throw new Error("Failed to save parent");
-            }
-
+            });
             setSuccess('บันทึกข้อมูลผู้ปกครองเรียบร้อยแล้ว ✅');
             setTimeout(() => setSuccess(''), 3000);
             window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -147,40 +120,14 @@ export default function ProfilePage() {
         setSuccess('');
 
         try {
-            const supabaseWrapper = await createSPASassClient();
-            const supabase = supabaseWrapper.getSupabaseClient();
-
             if (!child.gender || !child.birth_date) {
-                setError("กรุณาระบุเพศและวันเกิดของลูกน้อย");
+                setError('กรุณาระบุเพศและวันเกิดของลูกน้อย');
                 setSaving(false);
                 return;
             }
 
-            // Fetch the actual parent_profiles.id first (FK references parent_profiles.id, not auth.users.id)
-            const { data: parentData, error: parentFetchError } = await supabase
-                .from('parent_profiles')
-                .select('id')
-                .eq('user_id', user.id)
-                .limit(1)
-                .maybeSingle();
-
-            let parentRow = parentData;
-
-            if (parentFetchError || !parentRow) {
-                // Silently create an empty parent profile
-                const { data: newParent, error: upsertError } = await supabase
-                    .from('parent_profiles')
-                    .upsert({ user_id: user.id }, { onConflict: 'user_id' })
-                    .select('id')
-                    .single();
-                
-                if (upsertError || !newParent) throw new Error("Failed to auto-create parent profile");
-                parentRow = newParent;
-            }
-
-
+            const parentRow = ensureParentProfile(user.id);
             const childPayload = {
-                parent_id: parentRow.id,
                 gender: child.gender || null,
                 birth_date: child.birth_date || null,
                 birth_order: child.birth_order ? parseInt(child.birth_order) : null,
@@ -193,40 +140,15 @@ export default function ProfilePage() {
                 dspm_language_comprehension: child.dspm_language_comprehension || null,
                 dspm_language_use: child.dspm_language_use || null,
                 dspm_self_help: child.dspm_self_help || null,
-                updated_at: new Date().toISOString()
             };
 
-            let q;
-            if (child.id) {
-                // Update
-                q = supabase.from('children').update(childPayload).eq('id', child.id);
-            } else {
-                // Insert
-                q = supabase.from('children').insert([childPayload]).select('id').single();
-            }
+            const saved = child.id
+                ? updateChild(child.id, childPayload)
+                : insertChild(parentRow.id, childPayload);
 
-            const { data, error: upsertError } = await q;
-            if (upsertError) {
-                console.error("Supabase Save Child Error:", JSON.stringify(upsertError));
-                if (upsertError.code === '23503') {
-                    throw new Error("กรุณาบันทึก 'ข้อมูลผู้ปกครอง' ก่อนทำการบันทึกข้อมูลเด็กคะ/ครับ");
-                }
-                throw new Error("Failed to save child");
-            }
-            
-            if (data && data.id) {
-                // Prepend to childList
-                setChildList([{ ...childPayload, id: data.id }, ...childList]);
-                setSelectedChildId(data.id);
-            }
-            
-            // Clear the form
-            setChild({
-                id: '', gender: '', birth_date: '', birth_order: '', weight: '', height: '',
-                decayed_teeth: '', dentist_visit_history: '',
-                dspm_gross_motor: '', dspm_fine_motor: '',
-                dspm_language_comprehension: '', dspm_language_use: '', dspm_self_help: ''
-            });
+            setChildList([saved, ...childList.filter((c) => c.id !== saved.id)]);
+            setSelectedChildId(saved.id);
+            setChild(emptyChildForm);
 
             setSuccess('บันทึกข้อมูลลูกน้อยเรียบร้อยแล้ว ✅');
             setTimeout(() => setSuccess(''), 3000);

@@ -3,105 +3,64 @@ import React, { useState, useEffect, useRef } from 'react';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import { MessageCircle, Send, Loader2, AlertCircle } from 'lucide-react';
 import { useGlobal } from '@/lib/context/GlobalContext';
-import { createSPASassClientAuthenticated as createSPASassClient } from '@/lib/supabase/client';
+import { insertChatMessage, listChatMessages, type ChatMessage } from '@/lib/local-db';
 
 export default function ChatPage() {
     const { user } = useGlobal();
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const [messages, setMessages] = useState<any[]>([]);
+    const [messages, setMessages] = useState<ChatMessage[]>([]);
     const [loading, setLoading] = useState(true);
     const [sending, setSending] = useState(false);
     const [error, setError] = useState('');
     const [inputText, setInputText] = useState('');
     const messagesEndRef = useRef<HTMLDivElement>(null);
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const [supabaseClient, setSupabaseClient] = useState<any>(null);
 
-    // Scroll to bottom when messages update
     useEffect(() => {
         messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
     }, [messages]);
 
     useEffect(() => {
         if (!user) return;
-        
-        let channel: { unsubscribe: () => void; } | undefined;
-
-        async function initChat() {
-            try {
-                const supabaseWrapper = await createSPASassClient();
-                const supabase = supabaseWrapper.getSupabaseClient();
-                setSupabaseClient(supabase);
-                
-                // Fetch initial messages
-                const { data, error: fetchError } = await supabase
-                    .from('chat_messages')
-                    .select('*')
-                    .eq('user_id', user!.id)
-                    .order('created_at', { ascending: true });
-                
-                if (fetchError) {
-                    console.error("Supabase Fetch Error (Chat):", JSON.stringify(fetchError));
-                    throw new Error(fetchError.message || "Failed to fetch");
-                }
-                setMessages(data || []);
-
-                // Subscribe to realtime changes
-                channel = supabase
-                    .channel('public:chat_messages')
-                    .on('postgres_changes', { 
-                        event: 'INSERT', 
-                        schema: 'public', 
-                        table: 'chat_messages',
-                        filter: `user_id=eq.${user!.id}`
-                    }, (payload) => {
-                        setMessages(prev => [...prev, payload.new]);
-                    })
-                    .subscribe();
-
-            } catch (err: unknown) {
-                console.error(err);
-                setError('ไม่สามารถเชื่อมต่อระบบแชทได้');
-            } finally {
-                setLoading(false);
-            }
+        try {
+            setMessages(listChatMessages(user.id));
+        } catch (err: unknown) {
+            console.error(err);
+            setError('ไม่สามารถเชื่อมต่อระบบแชทได้');
+        } finally {
+            setLoading(false);
         }
-
-        initChat();
-
-        return () => {
-            if (channel) {
-                channel.unsubscribe();
-            }
-        };
     }, [user]);
 
-    const handleSendMessage = async (e: React.FormEvent) => {
+    const handleSendMessage = (e: React.FormEvent) => {
         e.preventDefault();
-        if (!inputText.trim() || !user || !supabaseClient) return;
+        if (!inputText.trim() || !user) return;
 
         setSending(true);
         const msgText = inputText;
-        setInputText(''); // optimistic clear
-        
+        setInputText('');
+        setError('');
+
         try {
-            const { error: insertError } = await supabaseClient
-                .from('chat_messages')
-                .insert([{
+            const created = insertChatMessage({
+                user_id: user.id,
+                sender_type: 'parent',
+                message: msgText,
+            });
+            setMessages((prev) => [...prev, created]);
+
+            // Auto-reply locally so chat still feels responsive without a staff backend
+            window.setTimeout(() => {
+                const reply = insertChatMessage({
                     user_id: user.id,
-                    sender_type: 'parent',
-                    message: msgText
-                }]);
-                
-            if (insertError) {
-                setInputText(msgText); // rollback
-                console.error("Supabase Insert Error (Chat):", JSON.stringify(insertError));
-                throw new Error(insertError.message || "Failed to insert");
-            }
+                    sender_type: 'staff',
+                    message:
+                        'ได้รับข้อความแล้วค่ะ เจ้าหน้าที่จะติดต่อกลับโดยเร็ว หรือโทร 082-889-9994 หากเร่งด่วน',
+                });
+                setMessages((prev) => [...prev, reply]);
+            }, 600);
         } catch (err) {
             console.error(err);
             setError('ส่งข้อความไม่สำเร็จ');
-            setInputText(msgText); // rollback
+            setInputText(msgText);
         } finally {
             setSending(false);
         }
@@ -136,12 +95,14 @@ export default function ChatPage() {
                             👩‍⚕️
                         </div>
                         <div>
-                            <CardTitle className="text-base text-gray-900">เจ้าหน้าที่สาธารณสุข / ผู้เชี่ยวชาญ</CardTitle>
+                            <CardTitle className="text-base text-gray-900">
+                                เจ้าหน้าที่สาธารณสุข / ผู้เชี่ยวชาญ
+                            </CardTitle>
                             <p className="text-xs text-green-600 font-medium">พร้อมให้คำปรึกษา</p>
                         </div>
                     </div>
                 </CardHeader>
-                
+
                 <CardContent className="flex-1 overflow-y-auto p-4 bg-gray-50/50 space-y-4">
                     {messages.length === 0 ? (
                         <div className="h-full flex flex-col items-center justify-center text-gray-400 space-y-2">
@@ -152,17 +113,30 @@ export default function ChatPage() {
                         messages.map((msg, idx) => {
                             const isParent = msg.sender_type === 'parent';
                             return (
-                                <div key={msg.id || idx} className={`flex ${isParent ? 'justify-end' : 'justify-start'}`}>
-                                    <div className={`max-w-[75%] px-4 py-2 rounded-2xl ${
-                                        isParent 
-                                            ? 'bg-primary-600 text-white rounded-tr-none' 
-                                            : 'bg-white text-gray-800 border border-gray-200 rounded-tl-none shadow-sm'
-                                    }`}>
-                                        <div className="text-sm whitespace-pre-wrap word-break" style={{ wordBreak: 'break-word' }}>
+                                <div
+                                    key={msg.id || idx}
+                                    className={`flex ${isParent ? 'justify-end' : 'justify-start'}`}
+                                >
+                                    <div
+                                        className={`max-w-[75%] px-4 py-2 rounded-2xl ${
+                                            isParent
+                                                ? 'bg-primary-600 text-white rounded-tr-none'
+                                                : 'bg-white text-gray-800 border border-gray-200 rounded-tl-none shadow-sm'
+                                        }`}
+                                    >
+                                        <div
+                                            className="text-sm whitespace-pre-wrap"
+                                            style={{ wordBreak: 'break-word' }}
+                                        >
                                             {msg.message}
                                         </div>
-                                        <div className={`text-[10px] mt-1 text-right ${isParent ? 'text-primary-100' : 'text-gray-400'}`}>
-                                            {new Date(msg.created_at).toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit' })}
+                                        <div
+                                            className={`text-[10px] mt-1 text-right ${isParent ? 'text-primary-100' : 'text-gray-400'}`}
+                                        >
+                                            {new Date(msg.created_at).toLocaleTimeString('th-TH', {
+                                                hour: '2-digit',
+                                                minute: '2-digit',
+                                            })}
                                         </div>
                                     </div>
                                 </div>
@@ -181,12 +155,16 @@ export default function ChatPage() {
                             placeholder="พิมพ์ข้อความสอบถามที่นี่..."
                             className="flex-1 border border-gray-300 rounded-full pl-4 pr-12 py-2.5 outline-none focus:border-primary-500 focus:ring-1 focus:ring-primary-500 text-sm "
                         />
-                        <button 
-                            type="submit" 
+                        <button
+                            type="submit"
                             disabled={sending || !inputText.trim()}
                             className="absolute right-1.5 top-1.5 bottom-1.5 w-10 flex items-center justify-center bg-primary-600 text-white rounded-full hover:bg-primary-700 disabled:opacity-50 transition-colors"
                         >
-                            {sending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4 ml-0.5" />}
+                            {sending ? (
+                                <Loader2 className="w-4 h-4 animate-spin" />
+                            ) : (
+                                <Send className="w-4 h-4 ml-0.5" />
+                            )}
                         </button>
                     </form>
                 </div>

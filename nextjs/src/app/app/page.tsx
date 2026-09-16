@@ -1,18 +1,17 @@
 "use client";
 import React from 'react';
 import { useGlobal } from '@/lib/context/GlobalContext';
+import { authPath } from '@/lib/auth-paths';
 import { CalendarDays, Baby, Bell, ArrowRight, ShieldCheck, ChevronRight, Users, LineChart, Activity, ClipboardList, BookOpen, Phone } from 'lucide-react';
 import Link from 'next/link';
 
+function daysSince(date: Date | undefined): number {
+    if (!date) return 0;
+    return Math.ceil(Math.abs(Date.now() - date.getTime()) / (1000 * 60 * 60 * 24));
+}
+
 export default function DashboardContent() {
     const { loading, user } = useGlobal();
-
-    const getDaysSinceRegistration = () => {
-        if (!user?.registered_at) return 0;
-        const today = new Date();
-        const diffTime = Math.abs(today.getTime() - user.registered_at.getTime());
-        return Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-    };
 
     if (loading) {
         return (
@@ -25,7 +24,7 @@ export default function DashboardContent() {
         );
     }
 
-    const daysSinceRegistration = getDaysSinceRegistration();
+    const daysSinceRegistration = daysSince(user?.registered_at);
     const displayName = user?.email?.split('@')[0] || 'คุณพ่อคุณแม่';
 
     // Grouped menu categories for mother-friendly UX
@@ -121,10 +120,19 @@ export default function DashboardContent() {
                             จัดการโปรไฟล์ลูก
                             <ArrowRight className="h-4 w-4 ml-0.5" />
                         </Link>
-                        <div className="flex items-center gap-2 text-green-100 bg-green-900/30 px-4 py-2.5 rounded-2xl text-sm">
-                            <CalendarDays className="h-4 w-4" />
-                            <span>เข้าร่วมเมื่อ {daysSinceRegistration} วันที่แล้ว</span>
-                        </div>
+                        {user ? (
+                            <div className="flex items-center gap-2 text-green-100 bg-green-900/30 px-4 py-2.5 rounded-2xl text-sm">
+                                <CalendarDays className="h-4 w-4" />
+                                <span>เข้าร่วมเมื่อ {daysSinceRegistration} วันที่แล้ว</span>
+                            </div>
+                        ) : (
+                            <Link
+                                href={authPath('login', '/app/profile')}
+                                className="flex items-center gap-2 text-white bg-green-900/30 px-4 py-2.5 rounded-2xl text-sm font-semibold"
+                            >
+                                เข้าสู่ระบบเพื่อบันทึกข้อมูล
+                            </Link>
+                        )}
                     </div>
                 </div>
             </div>

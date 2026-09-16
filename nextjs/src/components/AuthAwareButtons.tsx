@@ -1,6 +1,6 @@
 "use client";
 import { useState, useEffect } from 'react';
-import { createSPASassClient } from '@/lib/supabase/client';
+import { getSessionUser } from '@/lib/local-auth';
 import { ArrowRight, ChevronRight } from 'lucide-react';
 import Link from "next/link";
 
@@ -9,26 +9,14 @@ export default function AuthAwareButtons({ variant = 'primary' }) {
     const [loading, setLoading] = useState(true);
 
     useEffect(() => {
-        const checkAuth = async () => {
-            try {
-                const supabase = await createSPASassClient();
-                const { data: { user } } = await supabase.getSupabaseClient().auth.getUser();
-                setIsAuthenticated(!!user);
-            } catch (error) {
-                console.error('Error checking auth status:', error);
-            } finally {
-                setLoading(false);
-            }
-        };
-
-        checkAuth();
+        setIsAuthenticated(!!getSessionUser());
+        setLoading(false);
     }, []);
 
     if (loading) {
         return null;
     }
 
-    // Navigation buttons for the header
     if (variant === 'nav') {
         return isAuthenticated ? (
             <Link
@@ -52,7 +40,6 @@ export default function AuthAwareButtons({ variant = 'primary' }) {
         );
     }
 
-    // Primary buttons for the hero section
     return isAuthenticated ? (
         <Link
             href="/app"

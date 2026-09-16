@@ -3,84 +3,49 @@ import React, { useState, useEffect } from 'react';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import { Calendar as CalendarIcon, Clock, FileText, Plus, Loader2, AlertCircle, CheckCircle2, XCircle } from 'lucide-react';
 import { useGlobal } from '@/lib/context/GlobalContext';
-import { createSPASassClientAuthenticated as createSPASassClient } from '@/lib/supabase/client';
+import {
+    insertAppointment,
+    listAppointments,
+    updateAppointmentStatus,
+    type Appointment,
+} from '@/lib/local-db';
 
 export default function AppointmentsPage() {
     const { user } = useGlobal();
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const [appointments, setAppointments] = useState<any[]>([]);
+    const [appointments, setAppointments] = useState<Appointment[]>([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState('');
     const [saving, setSaving] = useState(false);
-
-    // Form state
     const [date, setDate] = useState('');
     const [time, setTime] = useState('');
     const [reason, setReason] = useState('');
 
     useEffect(() => {
         if (!user) return;
-
-        async function fetchAppointments() {
-            setLoading(true);
-            setError('');
-            try {
-                const supabaseWrapper = await createSPASassClient();
-                const supabase = supabaseWrapper.getSupabaseClient();
-                const { data, error: fetchError } = await supabase
-                    .from('appointments')
-                    .select('*')
-                    .eq('user_id', user!.id)
-                    .order('appointment_date', { ascending: true })
-                    .order('appointment_time', { ascending: true });
-
-                if (fetchError) {
-                    console.error("Supabase Fetch Error (Appointments):", JSON.stringify(fetchError));
-                    throw new Error(fetchError.message || "Failed to fetch");
-                }
-                setAppointments(data || []);
-            } catch (err: unknown) {
-                console.error(err);
-                setError('ไม่สามารถดึงข้อมูลนัดหมายได้');
-            } finally {
-                setLoading(false);
-            }
+        setLoading(true);
+        try {
+            setAppointments(listAppointments(user.id));
+        } catch (err: unknown) {
+            console.error(err);
+            setError('ไม่สามารถดึงข้อมูลนัดหมายได้');
+        } finally {
+            setLoading(false);
         }
-
-        fetchAppointments();
     }, [user]);
 
-    async function handleSubmit(e: React.FormEvent) {
+    function handleSubmit(e: React.FormEvent) {
         e.preventDefault();
         if (!user || !date || !time || !reason) return;
         setSaving(true);
+        setError('');
         try {
-            const supabaseWrapper = await createSPASassClient();
-            const supabase = supabaseWrapper.getSupabaseClient();
-            const { data, error: insertError } = await supabase
-                .from('appointments')
-                .insert([{
-                    user_id: user.id,
-                    appointment_date: date,
-                    appointment_time: time,
-                    reason: reason,
-                    status: 'pending'
-                }])
-                .select()
-                .maybeSingle();
-                
-            if (insertError) {
-                console.error("Supabase Insert Error (Appointments):", JSON.stringify(insertError));
-                throw new Error(insertError.message || "Failed to insert");
-            }
-            
-            if (data) {
-                setAppointments([...appointments, data].sort((a,b) => {
-                    const dateA = new Date(`${a.appointment_date}T${a.appointment_time}`);
-                    const dateB = new Date(`${b.appointment_date}T${b.appointment_time}`);
-                    return dateA.getTime() - dateB.getTime();
-                }));
-            }
+            insertAppointment({
+                user_id: user.id,
+                appointment_date: date,
+                appointment_time: time,
+                reason,
+            });
+            setAppointments(listAppointments(user.id));
             setDate('');
             setTime('');
             setReason('');
@@ -92,32 +57,45 @@ export default function AppointmentsPage() {
         }
     }
 
-    async function handleCancelAppointment(id: string) {
+    function handleCancelAppointment(id: string) {
         if (!confirm('คุณแน่ใจหรือไม่ที่จะยกเลิกนัดหมายนี้?')) return;
         try {
-            const supabaseWrapper = await createSPASassClient();
-            const supabase = supabaseWrapper.getSupabaseClient();
-            const { error: updateError } = await supabase
-                .from('appointments')
-                .update({ status: 'cancelled' })
-                .eq('id', id);
-                
-            if (updateError) throw updateError;
-            
-            setAppointments(prev => prev.map(a => a.id === id ? { ...a, status: 'cancelled' } : a));
+            updateAppointmentStatus(id, 'cancelled');
+            setAppointments((prev) => prev.map((a) => (a.id === id ? { ...a, status: 'cancelled' } : a)));
         } catch (err: unknown) {
-            console.error("Error cancelling appointment:", err);
+            console.error(err);
             alert('เกิดข้อผิดพลาดในการยกเลิกนัดหมาย');
         }
     }
 
     const getStatusBadge = (status: string) => {
         switch (status) {
-            case 'pending': return <span className="px-2 py-1 bg-yellow-100 text-yellow-700 text-xs rounded-full flex items-center gap-1"><Clock className="w-3 h-3"/> รอการยืนยัน</span>;
-            case 'confirmed': return <span className="px-2 py-1 bg-green-100 text-green-700 text-xs rounded-full flex items-center gap-1"><CheckCircle2 className="w-3 h-3"/> ยืนยันแล้ว</span>;
-            case 'cancelled': return <span className="px-2 py-1 bg-red-100 text-red-700 text-xs rounded-full flex items-center gap-1"><XCircle className="w-3 h-3"/> ยกเลิก</span>;
-            case 'completed': return <span className="px-2 py-1 bg-blue-100 text-blue-700 text-xs rounded-full flex items-center gap-1"><CheckCircle2 className="w-3 h-3"/> เสร็จสิ้น</span>;
-            default: return null;
+            case 'pending':
+                return (
+                    <span className="px-2 py-1 bg-yellow-100 text-yellow-700 text-xs rounded-full flex items-center gap-1">
+                        <Clock className="w-3 h-3" /> รอการยืนยัน
+                    </span>
+                );
+            case 'confirmed':
+                return (
+                    <span className="px-2 py-1 bg-green-100 text-green-700 text-xs rounded-full flex items-center gap-1">
+                        <CheckCircle2 className="w-3 h-3" /> ยืนยันแล้ว
+                    </span>
+                );
+            case 'cancelled':
+                return (
+                    <span className="px-2 py-1 bg-red-100 text-red-700 text-xs rounded-full flex items-center gap-1">
+                        <XCircle className="w-3 h-3" /> ยกเลิก
+                    </span>
+                );
+            case 'completed':
+                return (
+                    <span className="px-2 py-1 bg-blue-100 text-blue-700 text-xs rounded-full flex items-center gap-1">
+                        <CheckCircle2 className="w-3 h-3" /> เสร็จสิ้น
+                    </span>
+                );
+            default:
+                return null;
         }
     };
 
@@ -134,7 +112,7 @@ export default function AppointmentsPage() {
             <h1 className="text-2xl font-bold text-gray-900 flex items-center gap-2">
                 <CalendarIcon className="h-6 w-6 text-primary-600" /> นัดหมาย
             </h1>
-            
+
             {error && (
                 <div className="p-4 bg-red-50 border border-red-200 text-red-800 rounded-lg flex gap-3">
                     <AlertCircle className="h-5 w-5 flex-shrink-0 mt-0.5" />
@@ -151,22 +129,42 @@ export default function AppointmentsPage() {
                         <form onSubmit={handleSubmit} className="space-y-4">
                             <div>
                                 <label className="block text-sm font-medium text-gray-700 mb-1">วันที่</label>
-                                <input type="date" required value={date} onChange={e => setDate(e.target.value)}
-                                    className="w-full border border-gray-300 rounded-lg p-2 focus:ring-primary-500 focus:border-primary-500 text-black" />
+                                <input
+                                    type="date"
+                                    required
+                                    value={date}
+                                    onChange={(e) => setDate(e.target.value)}
+                                    className="w-full border border-gray-300 rounded-lg p-2 focus:ring-primary-500 focus:border-primary-500 text-black"
+                                />
                             </div>
                             <div>
                                 <label className="block text-sm font-medium text-gray-700 mb-1">เวลา</label>
-                                <input type="time" required value={time} onChange={e => setTime(e.target.value)}
-                                    className="w-full border border-gray-300 rounded-lg p-2 focus:ring-primary-500 focus:border-primary-500 text-black" />
+                                <input
+                                    type="time"
+                                    required
+                                    value={time}
+                                    onChange={(e) => setTime(e.target.value)}
+                                    className="w-full border border-gray-300 rounded-lg p-2 focus:ring-primary-500 focus:border-primary-500 text-black"
+                                />
                             </div>
                             <div>
                                 <label className="block text-sm font-medium text-gray-700 mb-1">เหตุผลที่นัด</label>
-                                <textarea required value={reason} onChange={e => setReason(e.target.value)} rows={3} placeholder="เช่น ปรึกษาพัฒนาการเด็ก, ตรวจฟัน"
-                                    className="w-full border border-gray-300 rounded-lg p-2 focus:ring-primary-500 focus:border-primary-500 text-black" />
+                                <textarea
+                                    required
+                                    value={reason}
+                                    onChange={(e) => setReason(e.target.value)}
+                                    rows={3}
+                                    placeholder="เช่น ปรึกษาพัฒนาการเด็ก, ตรวจฟัน"
+                                    className="w-full border border-gray-300 rounded-lg p-2 focus:ring-primary-500 focus:border-primary-500 text-black"
+                                />
                             </div>
-                            <button type="submit" disabled={saving || !date || !time || !reason}
-                                className="w-full flex items-center justify-center gap-2 px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 disabled:opacity-50 transition-colors">
-                                {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Plus className="w-4 h-4" />} ยืนยันการนัด
+                            <button
+                                type="submit"
+                                disabled={saving || !date || !time || !reason}
+                                className="w-full flex items-center justify-center gap-2 px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 disabled:opacity-50 transition-colors"
+                            >
+                                {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Plus className="w-4 h-4" />}{' '}
+                                ยืนยันการนัด
                             </button>
                         </form>
                     </CardContent>
@@ -182,17 +180,23 @@ export default function AppointmentsPage() {
                             </CardContent>
                         </Card>
                     ) : (
-                        appointments.map(app => (
+                        appointments.map((app) => (
                             <Card key={app.id} className="overflow-hidden">
                                 <div className="border-l-4 border-l-primary-500 p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                                     <div className="space-y-2">
                                         <div className="flex items-center gap-2">
                                             <CalendarIcon className="w-4 h-4 text-gray-500" />
                                             <span className="font-medium text-gray-900">
-                                                {new Date(app.appointment_date).toLocaleDateString('th-TH', { year: 'numeric', month: 'long', day: 'numeric' })}
+                                                {new Date(app.appointment_date).toLocaleDateString('th-TH', {
+                                                    year: 'numeric',
+                                                    month: 'long',
+                                                    day: 'numeric',
+                                                })}
                                             </span>
                                             <Clock className="w-4 h-4 text-gray-500 ml-2" />
-                                            <span className="text-sm font-medium text-gray-700">{app.appointment_time.slice(0,5)} น.</span>
+                                            <span className="text-sm font-medium text-gray-700">
+                                                {app.appointment_time.slice(0, 5)} น.
+                                            </span>
                                         </div>
                                         <div className="flex items-start gap-2 text-sm text-gray-600">
                                             <FileText className="w-4 h-4 mt-0.5 text-gray-400 shrink-0" />
@@ -202,8 +206,8 @@ export default function AppointmentsPage() {
                                     <div className="shrink-0 flex flex-col items-end justify-center w-full sm:w-auto h-full gap-2">
                                         {getStatusBadge(app.status)}
                                         {(app.status === 'pending' || app.status === 'confirmed') && (
-                                            <button 
-                                                onClick={() => handleCancelAppointment(app.id)} 
+                                            <button
+                                                onClick={() => handleCancelAppointment(app.id)}
                                                 className="text-xs text-red-600 hover:text-red-700 hover:bg-red-50 px-2 py-1 rounded transition w-fit"
                                             >
                                                 ยกเลิกนัด

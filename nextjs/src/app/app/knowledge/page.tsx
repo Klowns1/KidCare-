@@ -2,7 +2,6 @@
 import React, { useState, useEffect } from 'react';
 import { BookOpen, Search, ChevronDown, PlayCircle, Loader2, AlertCircle } from 'lucide-react';
 import Image from 'next/image';
-import { createSPASassClientAuthenticated as createSPASassClient } from '@/lib/supabase/client';
 
 interface Article {
     id: string;
@@ -12,6 +11,36 @@ interface Article {
     image_url: string;
     created_at: string;
 }
+
+const seededArticles: Article[] = [
+    {
+        id: 'a1',
+        title: 'โภชนาการสำหรับเด็กอายุ 2–5 ปี',
+        content:
+            'เด็กวัยนี้ควรกินอาหารหลัก 5 หมู่ครบทุกมื้อ เน้นโปรตีนจากไข่ นม เนื้อสัตว์ ผัก ผลไม้ และลดขนมหวาน น้ำอัดลม',
+        category: 'โภชนาการ',
+        image_url: '',
+        created_at: new Date().toISOString(),
+    },
+    {
+        id: 'a2',
+        title: 'วิธีแปรงฟันให้ลูกอย่างถูกต้อง',
+        content:
+            'แปรงฟันอย่างน้อยวันละ 2 ครั้ง เช้าและก่อนนอน ด้วยยาสีฟันฟลูออไรด์ 1000 ppm และผู้ปกครองควรช่วยแปรงซ้ำจนอายุประมาณ 8 ปี',
+        category: 'สุขภาพฟัน',
+        image_url: '',
+        created_at: new Date().toISOString(),
+    },
+    {
+        id: 'a3',
+        title: 'ส่งเสริมพัฒนาการด้วยการเล่น',
+        content:
+            'การอ่านนิทาน เล่นดินทราย และกิจกรรมช่วยเหลือตนเอง เช่น แต่งตัว กินข้าว ช่วยพัฒนาภาษา กล้ามเนื้อ และการเข้าสังคม',
+        category: 'พัฒนาการ',
+        image_url: '',
+        created_at: new Date().toISOString(),
+    },
+];
 
 const faqs = [
     { q: 'เด็ก 2–5 ปี ควรกินอาหารอะไรบ้าง?', a: 'ควรกินอาหารหลัก 5 หมู่ครบทุกมื้อ เน้นโปรตีน ผัก ผลไม้ และนมจืดหลีกเลี่ยงขนมหวานและน้ำอัดลม' },
@@ -46,24 +75,8 @@ export default function KnowledgePage() {
     const [loading, setLoading] = useState(true);
 
     useEffect(() => {
-        async function fetchArticles() {
-            try {
-                const supabaseWrapper = await createSPASassClient();
-                const supabase = supabaseWrapper.getSupabaseClient();
-                const { data, error } = await supabase
-                    .from('articles')
-                    .select('*')
-                    .order('created_at', { ascending: false });
-                    
-                if (error) throw error;
-                setArticles(data || []);
-            } catch (err) {
-                console.error("Error fetching articles:", err);
-            } finally {
-                setLoading(false);
-            }
-        }
-        fetchArticles();
+        setArticles(seededArticles);
+        setLoading(false);
     }, []);
 
     // Get unique categories for the horizontal filter chips

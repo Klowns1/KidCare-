@@ -1,9 +1,14 @@
-"use client";
+'use client';
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Bell, Check, Loader2, AlertCircle } from 'lucide-react';
 import { useGlobal } from '@/lib/context/GlobalContext';
-import { createSPASassClientAuthenticated as createSPASassClient } from '@/lib/supabase/client';
+import {
+    listNotifications,
+    markAllNotificationsRead,
+    markNotificationRead,
+    type NotificationItem,
+} from '@/lib/local-db';
 
 function getIconForType(type: string) {
     if (type.includes('brush') || type.includes('teeth')) return '🦷';
@@ -17,88 +22,47 @@ function getIconForType(type: string) {
     return '🔔';
 }
 
+function filterNotifications(items: NotificationItem[], filter: string): NotificationItem[] {
+    if (filter === 'all') return items;
+    if (filter === 'unread') return items.filter((n) => !n.is_read);
+    return items.filter((n) => n.type === filter);
+}
+
 export default function NotificationsPage() {
     const { user } = useGlobal();
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const [notifications, setNotifications] = useState<any[]>([]);
+    const [notifications, setNotifications] = useState<NotificationItem[]>([]);
     const [filter, setFilter] = useState<string>('all');
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState('');
 
     useEffect(() => {
         if (!user) return;
-        
-        async function fetchNotifications() {
-            setLoading(true);
-            try {
-                const supabaseWrapper = await createSPASassClient();
-                const supabase = supabaseWrapper.getSupabaseClient();
-                
-                const { data, error: fetchError } = await supabase
-                    .from('notifications')
-                    .select('*')
-                    .eq('user_id', user!.id)
-                    .order('created_at', { ascending: false });
-                    
-                if (fetchError) throw fetchError;
-                
-                setNotifications(data || []);
-            } catch (err: unknown) {
-                console.error(err);
-                setError("เกิดข้อผิดพลาดในการโหลดการแจ้งเตือน");
-            } finally {
-                setLoading(false);
-            }
+        setLoading(true);
+        try {
+            setNotifications(listNotifications(user.id));
+        } catch (err: unknown) {
+            console.error(err);
+            setError('เกิดข้อผิดพลาดในการโหลดการแจ้งเตือน');
+        } finally {
+            setLoading(false);
         }
-        
-        fetchNotifications();
     }, [user]);
 
-    const markAsRead = async (id: string, is_read: boolean) => {
+    function markAsRead(id: string, is_read: boolean) {
         if (is_read) return;
-        try {
-            const supabaseWrapper = await createSPASassClient();
-            const supabase = supabaseWrapper.getSupabaseClient();
-            
-            const { error: updateError } = await supabase
-                .from('notifications')
-                .update({ is_read: true })
-                .eq('id', id);
-                
-            if (updateError) throw updateError;
-            
-            setNotifications(notifications.map(n => n.id === id ? { ...n, is_read: true } : n));
-        } catch (err: unknown) {
-            console.error(err);
-        }
-    };
+        markNotificationRead(id);
+        setNotifications((prev) => prev.map((n) => (n.id === id ? { ...n, is_read: true } : n)));
+    }
 
-    const markAllRead = async () => {
-        try {
-            const supabaseWrapper = await createSPASassClient();
-            const supabase = supabaseWrapper.getSupabaseClient();
-            
-            const unreadIds = notifications.filter(n => !n.is_read).map(n => n.id);
-            if (unreadIds.length === 0) return;
-            
-            const { error: updateError } = await supabase
-                .from('notifications')
-                .update({ is_read: true })
-                .in('id', unreadIds);
-                
-            if (updateError) throw updateError;
-            
-            setNotifications(notifications.map(n => ({ ...n, is_read: true })));
-        } catch (err: unknown) {
-            console.error(err);
-        }
-    };
+    function markAllRead() {
+        if (!user) return;
+        markAllNotificationsRead(user.id);
+        setNotifications((prev) => prev.map((n) => ({ ...n, is_read: true })));
+    }
 
-    const filtered = filter === 'all' ? notifications :
-        filter === 'unread' ? notifications.filter(n => !n.is_read) :
-            notifications.filter(n => n.type === filter);
+    const filtered = filterNotifications(notifications, filter);
 
-    const unreadCount = notifications.filter(n => !n.is_read).length;
+    const unreadCount = notifications.filter((n) => !n.is_read).length;
 
     const filterButtons = [
         { key: 'all', label: 'ทั้งหมด' },
@@ -123,12 +87,16 @@ export default function NotificationsPage() {
                     <Bell className="h-7 w-7 text-primary-600" />
                     <h1 className="text-2xl font-bold text-gray-900">การแจ้งเตือน</h1>
                     {unreadCount > 0 && (
-                        <span className="px-2 py-0.5 bg-red-500 text-white text-xs rounded-full">{unreadCount}</span>
+                        <span className="px-2 py-0.5 bg-red-500 text-white text-xs rounded-full">
+                            {unreadCount}
+                        </span>
                     )}
                 </div>
                 {unreadCount > 0 && (
-                    <button onClick={markAllRead}
-                        className="flex items-center gap-1 px-3 py-1.5 text-sm text-primary-600 border border-primary-300 rounded-lg hover:bg-primary-50">
+                    <button
+                        onClick={markAllRead}
+                        className="flex items-center gap-1 px-3 py-1.5 text-sm text-primary-600 border border-primary-300 rounded-lg hover:bg-primary-50"
+                    >
                         <Check className="h-4 w-4" /> อ่านทั้งหมด
                     </button>
                 )}
@@ -141,18 +109,19 @@ export default function NotificationsPage() {
                 </div>
             )}
 
-            {/* Filters */}
             <div className="flex gap-2 flex-wrap">
-                {filterButtons.map(fb => (
-                    <button key={fb.key} onClick={() => setFilter(fb.key)}
+                {filterButtons.map((fb) => (
+                    <button
+                        key={fb.key}
+                        onClick={() => setFilter(fb.key)}
                         className={`px-3 py-1.5 rounded-full text-xs font-medium transition-all border
-                            ${filter === fb.key ? 'bg-primary-600 text-white border-primary-600' : 'bg-white text-gray-600 border-gray-300 hover:border-primary-400'}`}>
+                            ${filter === fb.key ? 'bg-primary-600 text-white border-primary-600' : 'bg-white text-gray-600 border-gray-300 hover:border-primary-400'}`}
+                    >
                         {fb.label}
                     </button>
                 ))}
             </div>
 
-            {/* Notification List */}
             {filtered.length === 0 ? (
                 <Card>
                     <CardContent className="py-12 text-center text-gray-500">
@@ -161,25 +130,38 @@ export default function NotificationsPage() {
                 </Card>
             ) : (
                 <div className="space-y-2">
-                    {filtered.map(n => {
+                    {filtered.map((n) => {
                         const icon = getIconForType(n.type);
-                        const timeString = new Date(n.created_at).toLocaleDateString('th-TH', { 
-                            year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' 
+                        const timeString = new Date(n.created_at).toLocaleDateString('th-TH', {
+                            year: 'numeric',
+                            month: 'short',
+                            day: 'numeric',
+                            hour: '2-digit',
+                            minute: '2-digit',
                         });
                         return (
-                            <Card key={n.id} className={`cursor-pointer transition-all hover:shadow-md ${!n.is_read ? 'border-l-4 border-l-primary-500 bg-primary-50/30' : ''}`}
-                                onClick={() => markAsRead(n.id, n.is_read)}>
+                            <Card
+                                key={n.id}
+                                className={`cursor-pointer transition-all hover:shadow-md ${!n.is_read ? 'border-l-4 border-l-primary-500 bg-primary-50/30' : ''}`}
+                                onClick={() => markAsRead(n.id, n.is_read)}
+                            >
                                 <CardContent className="py-4">
                                     <div className="flex items-start gap-3">
                                         <span className="text-2xl">{icon}</span>
                                         <div className="flex-1">
                                             <div className="flex flex-col sm:flex-row sm:items-center justify-between">
-                                                <h3 className={`font-medium ${!n.is_read ? 'text-gray-900' : 'text-gray-600'}`}>{n.title}</h3>
+                                                <h3
+                                                    className={`font-medium ${!n.is_read ? 'text-gray-900' : 'text-gray-600'}`}
+                                                >
+                                                    {n.title}
+                                                </h3>
                                                 <span className="text-xs text-gray-400">{timeString}</span>
                                             </div>
                                             <p className="text-sm text-gray-600 mt-1">{n.message}</p>
                                         </div>
-                                        {!n.is_read && <div className="w-2 h-2 bg-primary-500 rounded-full mt-2 flex-shrink-0" />}
+                                        {!n.is_read && (
+                                            <div className="w-2 h-2 bg-primary-500 rounded-full mt-2 flex-shrink-0" />
+                                        )}
                                     </div>
                                 </CardContent>
                             </Card>

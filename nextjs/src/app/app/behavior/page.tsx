@@ -2,32 +2,59 @@
 import React, { useState, useEffect } from 'react';
 import { Activity, Save, Calendar, CheckCircle2, Circle, Loader2, AlertCircle } from 'lucide-react';
 import { useGlobal } from '@/lib/context/GlobalContext';
-import { createSPASassClientAuthenticated as createSPASassClient } from '@/lib/supabase/client';
+import {
+    getChild,
+    getParentByUserId,
+    listBehaviorLogs,
+    upsertBehaviorLog,
+    type BehaviorLog,
+} from '@/lib/local-db';
 import Link from 'next/link';
 
-interface BehaviorEntry {
+type BehaviorFlags = Omit<BehaviorLog, 'id' | 'child_id' | 'log_date' | 'notes'>;
+
+interface BehaviorEntry extends BehaviorFlags {
     date: string;
-    meals_3_per_day: boolean;
-    fruits_vegetables: boolean;
-    breakfast: boolean;
-    processed_food: boolean;
-    brushed_teeth: boolean;
-    dental_checkup: boolean;
-    bottle_before_bed: boolean;
-    read_stories: boolean;
-    played_with_child: boolean;
-    self_help_training: boolean;
-    praised_child: boolean;
     notes: string;
 }
 
+const defaultFlags: BehaviorFlags = {
+    meals_3_per_day: false,
+    fruits_vegetables: false,
+    breakfast: false,
+    processed_food: false,
+    brushed_teeth: false,
+    dental_checkup: false,
+    bottle_before_bed: false,
+    read_stories: false,
+    played_with_child: false,
+    self_help_training: false,
+    praised_child: false,
+};
+
 const defaultEntry: BehaviorEntry = {
     date: new Date().toISOString().split('T')[0],
-    meals_3_per_day: false, fruits_vegetables: false, breakfast: false, processed_food: false,
-    brushed_teeth: false, dental_checkup: false, bottle_before_bed: false,
-    read_stories: false, played_with_child: false, self_help_training: false, praised_child: false,
+    ...defaultFlags,
     notes: '',
 };
+
+function toBehaviorEntry(log: BehaviorLog): BehaviorEntry {
+    return {
+        date: log.log_date,
+        notes: log.notes || '',
+        meals_3_per_day: log.meals_3_per_day,
+        fruits_vegetables: log.fruits_vegetables,
+        breakfast: log.breakfast,
+        processed_food: log.processed_food,
+        brushed_teeth: log.brushed_teeth,
+        dental_checkup: log.dental_checkup,
+        bottle_before_bed: log.bottle_before_bed,
+        read_stories: log.read_stories,
+        played_with_child: log.played_with_child,
+        self_help_training: log.self_help_training,
+        praised_child: log.praised_child,
+    };
+}
 
 const sections = [
     {
@@ -82,83 +109,35 @@ export default function BehaviorPage() {
 
     useEffect(() => {
         if (!user) return;
-        
-        async function loadData() {
-            setLoading(true);
-            try {
-                const supabaseWrapper = await createSPASassClient();
-                const supabase = supabaseWrapper.getSupabaseClient();
-                
-                // Fetch parent profile id first
-                const { data: parentData } = await supabase
-                    .from('parent_profiles')
-                    .select('id')
-                    .eq('user_id', user!.id)
-                    .limit(1)
-                    .maybeSingle();
-                    
-                if (!parentData) {
-                    setLoading(false);
-                    return;
-                }
-                if (!selectedChildId) {
-                    setChildId(null);
-                    setLoading(false);
-                    return;
-                }
 
-                const { data: childData, error: childError } = await supabase
-                    .from('children')
-                    .select('id')
-                    .eq('id', selectedChildId)
-                    .maybeSingle();
-                
-                if (childError) throw childError;
-                
-                if (childData) {
-                    setChildId(childData.id);
-                    // Fetch logs
-                    const { data: logData, error: logError } = await supabase
-                        .from('behavior_logs')
-                        .select('*')
-                        .eq('child_id', childData.id)
-                        .order('log_date', { ascending: false });
-                        
-                    if (logError) throw logError;
-                    
-                    if (logData && logData.length > 0) {
-                        const loadedLogs = logData.map(d => ({
-                            date: d.log_date,
-                            meals_3_per_day: d.meals_3_per_day,
-                            fruits_vegetables: d.fruits_vegetables,
-                            breakfast: d.breakfast,
-                            processed_food: d.processed_food,
-                            brushed_teeth: d.brushed_teeth,
-                            dental_checkup: d.dental_checkup,
-                            bottle_before_bed: d.bottle_before_bed,
-                            read_stories: d.read_stories,
-                            played_with_child: d.played_with_child,
-                            self_help_training: d.self_help_training,
-                            praised_child: d.praised_child,
-                            notes: d.notes || ''
-                        }));
-                        setLogs(loadedLogs);
-                        
-                        // Check if today's log exists
-                        const today = new Date().toISOString().split('T')[0];
-                        const todayLog = loadedLogs.find(l => l.date === today);
-                        if (todayLog) setEntry(todayLog);
-                    }
-                }
-            } catch (err: unknown) {
-                console.error(err);
-                setError("เกิดข้อผิดพลาดในการโหลดข้อมูล");
-            } finally {
+        setLoading(true);
+        try {
+            const parentData = getParentByUserId(user.id);
+            if (!parentData) {
                 setLoading(false);
+                return;
             }
+            if (!selectedChildId) {
+                setChildId(null);
+                setLoading(false);
+                return;
+            }
+
+            const childData = getChild(selectedChildId);
+            if (!childData) return;
+
+            setChildId(childData.id);
+            const loadedLogs = listBehaviorLogs(childData.id).map(toBehaviorEntry);
+            setLogs(loadedLogs);
+            const today = new Date().toISOString().split('T')[0];
+            const todayLog = loadedLogs.find((l) => l.date === today);
+            if (todayLog) setEntry(todayLog);
+        } catch (err: unknown) {
+            console.error(err);
+            setError('เกิดข้อผิดพลาดในการโหลดข้อมูล');
+        } finally {
+            setLoading(false);
         }
-        
-        loadData();
     }, [user, selectedChildId]);
 
     const toggleItem = (key: keyof BehaviorEntry) => {
@@ -167,63 +146,30 @@ export default function BehaviorPage() {
 
     const handleSave = async () => {
         if (!user || !childId) {
-            setError("ไม่พบข้อมูลลูกน้อย กรุณาเพิ่มประวัติลูกในหน้าโปรไฟล์ก่อนคะ/ครับ");
+            setError('ไม่พบข้อมูลลูกน้อย กรุณาเพิ่มประวัติลูกในหน้าโปรไฟล์ก่อนคะ/ครับ');
             return;
         }
         setSaving(true);
         setError('');
         try {
-            const supabaseWrapper = await createSPASassClient();
-            const supabase = supabaseWrapper.getSupabaseClient();
-            
-            const payload = {
+            const { date, notes, ...flags } = entry;
+            upsertBehaviorLog({
                 child_id: childId,
-                log_date: entry.date,
-                meals_3_per_day: entry.meals_3_per_day,
-                fruits_vegetables: entry.fruits_vegetables,
-                breakfast: entry.breakfast,
-                processed_food: entry.processed_food,
-                brushed_teeth: entry.brushed_teeth,
-                dental_checkup: entry.dental_checkup,
-                bottle_before_bed: entry.bottle_before_bed,
-                read_stories: entry.read_stories,
-                played_with_child: entry.played_with_child,
-                self_help_training: entry.self_help_training,
-                praised_child: entry.praised_child,
-                notes: entry.notes || null
-            };
+                log_date: date,
+                notes: notes || null,
+                ...flags,
+            });
 
-            const { data: existing, error: findError } = await supabase
-                .from('behavior_logs')
-                .select('id')
-                .eq('child_id', childId)
-                .eq('log_date', entry.date)
-                .maybeSingle();
-                
-            if (findError) throw findError;
-            
-            if (existing) {
-                const { error: updateError } = await supabase
-                    .from('behavior_logs')
-                    .update(payload)
-                    .eq('id', existing.id);
-                if (updateError) throw updateError;
-            } else {
-                const { error: insertError } = await supabase
-                    .from('behavior_logs')
-                    .insert([payload]);
-                if (insertError) throw insertError;
-            }
-            
-            const filteredLogs = logs.filter(l => l.date !== entry.date);
-            setLogs([entry, ...filteredLogs].sort((a,b) => b.date.localeCompare(a.date)));
-            
+            setLogs(
+                [entry, ...logs.filter((l) => l.date !== entry.date)].sort((a, b) =>
+                    b.date.localeCompare(a.date)
+                )
+            );
             setSaved(true);
-            setTimeout(() => setSaved(false), 3000);
-            window.scrollTo({ top: 0, behavior: 'smooth' });
+            setTimeout(() => setSaved(false), 2500);
         } catch (err: unknown) {
             console.error(err);
-            setError("เกิดข้อผิดพลาดในการบันทึกข้อมูล");
+            setError('เกิดข้อผิดพลาดในการบันทึก');
         } finally {
             setSaving(false);
         }

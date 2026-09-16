@@ -1,15 +1,20 @@
 'use server'
 
+const disabled = (detail: string) => {
+    throw new Error(`โหมดผู้เชี่ยวชาญยังไม่รองรับเมื่อปิด Supabase (${detail})`);
+};
+
 export async function getChatUsers() {
     return [] as string[];
 }
 
 export async function getMessagesForUser(userId: string) {
+    if (!userId) return [];
     return [] as Array<{ id: string; user_id: string; message: string; sender_type: string }>;
 }
 
 export async function sendExpertMessage(userId: string, message: string) {
-    throw new Error(`โหมดผู้เชี่ยวชาญยังไม่รองรับเมื่อปิด Supabase (${userId}, ${message.length})`);
+    disabled(`${userId}:${message.length}`);
 }
 
 export async function getAllAppointments() {
@@ -17,7 +22,7 @@ export async function getAllAppointments() {
 }
 
 export async function updateAppointmentStatus(id: string, status: string) {
-    throw new Error(`โหมดผู้เชี่ยวชาญยังไม่รองรับเมื่อปิด Supabase (${id}, ${status})`);
+    disabled(`${id}:${status}`);
 }
 
 export async function getAllArticles() {
@@ -30,9 +35,7 @@ export async function createArticle(
     category: string,
     imageUrl: string
 ) {
-    throw new Error(
-        `โหมดผู้เชี่ยวชาญยังไม่รองรับเมื่อปิด Supabase (${title}, ${content.length}, ${category}, ${imageUrl})`
-    );
+    disabled([title, content.length, category, imageUrl].join(':'));
 }
 
 export async function updateArticle(
@@ -42,11 +45,9 @@ export async function updateArticle(
     category: string,
     imageUrl: string
 ) {
-    throw new Error(
-        `โหมดผู้เชี่ยวชาญยังไม่รองรับเมื่อปิด Supabase (${id}, ${title}, ${content.length}, ${category}, ${imageUrl})`
-    );
+    disabled([id, title, content.length, category, imageUrl].join(':'));
 }
 
 export async function deleteArticle(id: string) {
-    throw new Error(`โหมดผู้เชี่ยวชาญยังไม่รองรับเมื่อปิด Supabase (${id})`);
+    disabled(id);
 }

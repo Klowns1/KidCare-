@@ -1,11 +1,11 @@
 'use client';
 
-import { Suspense, useState } from 'react';
+import { Suspense, useEffect, useState } from 'react';
 import { useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { Mail, Lock, Eye, EyeOff } from 'lucide-react';
 import { authPath, safeNextPath } from '@/lib/auth-paths';
-import { loginUser } from '@/lib/local-auth';
+import { DEMO_USER, ensureDemoUser, loginUser } from '@/lib/local-auth';
 
 function loginErrorMessage(err: unknown): string {
     if (!(err instanceof Error)) return 'เกิดข้อผิดพลาด กรุณาลองใหม่อีกครั้ง';
@@ -32,11 +32,16 @@ function LoginForm() {
     const searchParams = useSearchParams();
     const nextPath = safeNextPath(searchParams.get('next'));
 
+    useEffect(() => {
+        void ensureDemoUser();
+    }, []);
+
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         setError('');
         setLoading(true);
         try {
+            await ensureDemoUser();
             await loginUser(email, password);
             window.location.href = nextPath;
         } catch (err) {
@@ -51,6 +56,10 @@ function LoginForm() {
             <div className="text-center mb-6">
                 <h3 className="text-xl sm:text-2xl font-bold text-gray-900">เข้าสู่ระบบ</h3>
                 <p className="text-gray-500 text-sm mt-1">กรอกอีเมลและรหัสผ่านที่สมัครไว้</p>
+                <p className="mt-3 text-xs text-green-700 bg-green-50 border border-green-100 rounded-xl px-3 py-2">
+                    บัญชีทดสอบ: <span className="font-bold">{DEMO_USER.email}</span> /{' '}
+                    <span className="font-bold">{DEMO_USER.password}</span>
+                </p>
             </div>
 
             {error && (

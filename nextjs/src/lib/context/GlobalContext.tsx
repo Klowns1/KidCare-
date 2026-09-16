@@ -1,7 +1,7 @@
 'use client';
 
 import React, { createContext, useContext, useState, useEffect } from 'react';
-import { getSessionUser, logoutUser, type LocalUser } from '@/lib/local-auth';
+import { ensureDemoUser, getSessionUser, logoutUser, type LocalUser } from '@/lib/local-auth';
 import { getParentByUserId, listChildren } from '@/lib/local-db';
 
 const SELECTED_CHILD_KEY = 'kidcare_selectedChildId';
@@ -80,11 +80,15 @@ export function GlobalProvider({ children }: { children: React.ReactNode }) {
     }
 
     useEffect(() => {
-        try {
-            refreshUser();
-        } finally {
-            setLoading(false);
+        async function boot() {
+            try {
+                await ensureDemoUser();
+                refreshUser();
+            } finally {
+                setLoading(false);
+            }
         }
+        void boot();
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
 

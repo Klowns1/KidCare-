@@ -130,3 +130,25 @@ export function userExists(email: string): boolean {
     const normalized = email.trim().toLowerCase();
     return readUsers().some((u) => u.email === normalized);
 }
+
+/** Shared demo account for testing (created once per browser). */
+export const DEMO_USER = {
+    email: 'test@kidcare.local',
+    password: 'Test1234',
+} as const;
+
+const DEMO_USER_ID = '00000000-0000-4000-8000-000000000001';
+
+export async function ensureDemoUser(): Promise<void> {
+    if (typeof window === 'undefined') return;
+    const users = readUsers();
+    if (users.some((u) => u.email === DEMO_USER.email || u.id === DEMO_USER_ID)) return;
+
+    users.push({
+        id: DEMO_USER_ID,
+        email: DEMO_USER.email,
+        password_hash: await hashPassword(DEMO_USER.password, DEMO_USER_ID),
+        created_at: '2026-01-01T00:00:00.000Z',
+    });
+    writeUsers(users);
+}
